@@ -1,8 +1,13 @@
-name: Deploy GitHub Pages
+# Build the static site and deploy to GitHub Pages.
+# - PRs / all branches: build only (catches base-path / prompt HTML breakage)
+# - main: build + deploy → https://archastro.github.io/realtime-graphics/
+
+name: pages
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -11,7 +16,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,18 +31,34 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build static site for project Pages
+      - name: Build static site
         env:
-          # Project site: https://archastro.github.io/realtime-graphics/
+          # Project Pages URL path: /realtime-graphics/
           BASE_PATH: /realtime-graphics
         run: python3 scripts/build-pages.py
 
-      - name: Upload artifact
+      - name: Smoke-check index and prompt pages exist
+        run: |
+          set -euo pipefail
+          test -f .pages-dist/index.html
+          test -f .pages-dist/techniques/index.html
+          test -f .pages-dist/techniques/demos/index.html
+          test -f .pages-dist/prompts/index.html
+          test -f .pages-dist/prompts/03-claude-of-duty/index.html
+          test -f .pages-dist/.nojekyll
+          # Absolute site assets must be rewritten for project Pages
+          grep -q 'realtime-graphics/techniques/shared.css\|techniques/shared.css' .pages-dist/index.html
+          grep -q '/realtime-graphics/techniques/catalog.json\|/realtime-graphics/techniques/shared.css' .pages-dist/prompts/index.html
+          echo "Build artifact looks good."
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: .pages-dist
 
   deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     environment:

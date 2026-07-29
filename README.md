@@ -14,9 +14,19 @@ This is not a game engine. It is:
 
 **https://archastro.github.io/realtime-graphics/**
 
-- Repo is **private** (`ArchAstro/realtime-graphics`); source code stays private.
-- The **Pages site is public** (anyone with the URL). GitHub only offers access-controlled private Pages on Enterprise Cloud.
-- Deploy: push to `main` → `.github/workflows/pages.yml` builds with base path `/realtime-graphics` and deploys.
+| | |
+|--|--|
+| **Repo** | Private — `ArchAstro/realtime-graphics` |
+| **Site** | Public URL (access-controlled private Pages needs Enterprise) |
+| **CI** | [`.github/workflows/pages.yml`](.github/workflows/pages.yml) |
+
+What CI does on every push / PR:
+
+1. `python3 scripts/build-pages.py` — rebuild prompt HTML + rewrite paths for base `/realtime-graphics`
+2. Smoke-check that key pages exist and absolute URLs were rewritten
+3. **On `main` only:** upload artifact and deploy to GitHub Pages
+
+Manual redeploy: Actions → **pages** → **Run workflow**.
 
 ## Quick start (local)
 
