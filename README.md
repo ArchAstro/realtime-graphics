@@ -10,7 +10,15 @@ This is not a game engine. It is:
 
 ---
 
-## Quick start
+## Live site (GitHub Pages)
+
+**https://archastro.github.io/realtime-graphics/**
+
+- Repo is **private** (`ArchAstro/realtime-graphics`); source code stays private.
+- The **Pages site is public** (anyone with the URL). GitHub only offers access-controlled private Pages on Enterprise Cloud.
+- Deploy: push to `main` → `.github/workflows/pages.yml` builds with base path `/realtime-graphics` and deploys.
+
+## Quick start (local)
 
 ```bash
 # Browse the archive in your browser (builds prompt HTML pages, then serves)
@@ -23,6 +31,7 @@ Opens `http://127.0.0.1:8000/` by default.
 npm run dev -- 3000       # custom port
 npm run dev -- --no-open  # serve without opening a browser
 npm run build             # only regenerate prompts/*/index.html from markdown
+npm run build:pages       # build .pages-dist/ with GH Pages base path
 ```
 
 Requires **Python 3** (for the static server and HTML rebuild). No `npm install` of app dependencies is required for the site.
