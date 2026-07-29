@@ -6,6 +6,7 @@
     "dev": "bash scripts/dev.sh",
     "start": "npm run dev",
     "build": "python3 scripts/build-prompt-pages.py",
+    "build:pages": "python3 scripts/build-pages.py",
     "skills:list": "npx --yes skills add . --list",
     "skills:install": "npx --yes skills add . --skill realtime-graphics-prompt -y",
     "skills:install:global": "npx --yes skills add . --skill realtime-graphics-prompt -g -y"
