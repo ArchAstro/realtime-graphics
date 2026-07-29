@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>05 · Wrap + cheap SSS</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 05 / 12</div>
+        <h1>Wrapped diffuse + cheap SSS</h1>
+        <p class="lede">Lambert dies at the terminator. Snow and skin need light that wraps and scatters through the edge.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW snow SSS</span>
+          <span class="tag stack">shading model</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <pre class="codeblock">// wrap: softens N·L terminator
+float wrap = (dot(N,L) + w) / (1.0 + w);
+wrap = max(wrap, 0.0);
+
+// back-scatter: light from behind bleeds through
+float back = pow(saturate(dot(V, -L)), k) * scatter;
+col += albedo * wrap * lightColor;
+col += sssColor * back * thicknessApprox;</pre>
+      <p>
+        Production snow also tints the scatter <strong>blue-white</strong> and deepens it with
+        path thickness / compression state. Dynamic spell lights should share the same include.
+      </p>
+
+      <h2>Prompt match</h2>
+      <p>“This single term does more for ‘reads as snow’ than almost anything else.”</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Shading mode</label><span class="val" id="v-mode">wrap+SSS</span>
+          <input id="mode" type="range" min="0" max="2" step="1" value="2" />
+        </div>
+        <div class="control">
+          <label>Wrap amount</label><span class="val" id="v-w">0.45</span>
+          <input id="w" type="range" min="0" max="1" step="0.01" value="0.45" />
+        </div>
+        <div class="control">
+          <label>Scatter strength</label><span class="val" id="v-s">0.7</span>
+          <input id="s" type="range" min="0" max="1.5" step="0.01" value="0.7" />
+        </div>
+        <div class="control">
+          <label>Light angle</label><span class="val" id="v-ang">40°</span>
+          <input id="ang" type="range" min="0" max="360" step="1" value="40" />
+        </div>
+      </div>
+      <div class="note">Modes: <strong>0</strong> Lambert · <strong>1</strong> wrap only · <strong>2</strong> wrap + back-scatter. Low sun makes the difference obvious.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#05-wrap-sss">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./04-multi-scale-shading.html">← Multi-scale</a>
+        <a href="./06-sdf-blend-shell.html">Next: SDF shell →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">compare shading</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1018);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.set(0, 1.2, 5.5);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.6, 0);
+
+    scene.add(new THREE.AmbientLight(0x223344, 0.25));
+
+    const uniforms = {
+      uMode: { value: 2 },
+      uWrap: { value: 0.45 },
+      uScatter: { value: 0.7 },
+      uLightDir: { value: new THREE.Vector3(0.5, 0.35, 0.4).normalize() },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec3 vN; varying vec3 vW;
+        void main(){
+          vN = normalize(normalMatrix * normal);
+          vec4 w = modelMatrix * vec4(position,1.);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: /* glsl */`
+        varying vec3 vN; varying vec3 vW;
+        uniform float uMode, uWrap, uScatter;
+        uniform vec3 uLightDir;
+        void main(){
+          vec3 N = normalize(vN);
+          vec3 L = normalize(uLightDir);
+          vec3 V = normalize(cameraPosition - vW);
+          vec3 albedo = vec3(0.86, 0.9, 0.94);
+          vec3 sssCol = vec3(0.55, 0.72, 0.95);
+
+          float lambert = max(dot(N,L), 0.0);
+          float wrap = (dot(N,L) + uWrap) / (1.0 + uWrap);
+          wrap = max(wrap, 0.0);
+          wrap = pow(wrap, 1.2);
+
+          float back = pow(clamp(dot(V, -L), 0.0, 1.0), 2.5);
+          // fake thickness: edges scatter more
+          float edge = pow(1.0 - max(dot(N,V),0.0), 2.0);
+
+          vec3 col;
+          if (uMode < 0.5) {
+            col = albedo * (0.12 + 0.88 * lambert);
+          } else if (uMode < 1.5) {
+            col = albedo * (0.12 + 0.88 * wrap);
+          } else {
+            col = albedo * (0.1 + 0.75 * wrap);
+            col += sssCol * back * edge * uScatter;
+            col += sssCol * 0.12 * wrap * uScatter; // forward scatter tint in lit areas
+          }
+          // ground bounce cool fill
+          col += albedo * vec3(0.08, 0.1, 0.14) * (0.5 + 0.5 * N.y);
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+
+    // blob-ish snow mound: sphere + flattened
+    const geo = new THREE.SphereGeometry(1.1, 64, 64);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 1.0;
+    mesh.scale.set(1.2, 0.85, 1.1);
+    scene.add(mesh);
+
+    // ground
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(6, 48),
+      new THREE.MeshStandardMaterial({ color: 0x1a2430, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    const lightHelper = new THREE.DirectionalLight(0xffe0b0, 0.001);
+    scene.add(lightHelper);
+    const arrow = new THREE.ArrowHelper(uniforms.uLightDir.value.clone(), new THREE.Vector3(0, 1.5, 0), 2.2, 0xffb86b);
+    scene.add(arrow);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const modes = ["Lambert", "wrap only", "wrap+SSS"];
+    const el = (id) => document.getElementById(id);
+    el("mode").oninput = (e) => {
+      uniforms.uMode.value = +e.target.value;
+      el("v-mode").textContent = modes[+e.target.value];
+      el("hud").textContent = modes[+e.target.value];
+    };
+    el("w").oninput = (e) => { uniforms.uWrap.value = +e.target.value; el("v-w").textContent = (+e.target.value).toFixed(2); };
+    el("s").oninput = (e) => { uniforms.uScatter.value = +e.target.value; el("v-s").textContent = (+e.target.value).toFixed(2); };
+    el("ang").oninput = (e) => {
+      const a = +e.target.value * Math.PI / 180;
+      const elev = 0.35;
+      const d = new THREE.Vector3(Math.cos(a), elev, Math.sin(a)).normalize();
+      uniforms.uLightDir.value.copy(d);
+      arrow.setDirection(d);
+      el("v-ang").textContent = e.target.value + "°";
+    };
+    el("ang").dispatchEvent(new Event("input"));
+
+    (function frame() {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+/* Shared chrome for technique demos + site pages */
+:root {
+  --bg: #0b0d12;
+  --panel: rgba(18, 22, 31, 0.82);
+  --panel-2: rgba(26, 32, 48, 0.88);
+  --border: #2a3348;
+  --text: #e8edf7;
+  --muted: #8b97b0;
+  --accent: #6ec8ff;
+  --accent-2: #ffb86b;
+  --good: #7ddea2;
+  --warn: #f0c674;
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  /* Do not paint an opaque full-page bg — site-bg.js owns the backdrop.
+     has-site-bg / site-bg-static override as needed. */
+  background: transparent;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/*
+ * WebGL background (site-bg.js) lives on <html> with z-index: -1.
+ * html/body MUST be transparent or they paint over the canvas.
+ */
+#site-bg {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  display: block !important;
+}
+
+html.has-site-bg,
+html.has-site-bg body {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Quiet fallback if WebGL fails or reduced-motion */
+html.site-bg-static,
+html.site-bg-static body {
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 10%, rgba(40, 90, 160, 0.22), transparent 55%),
+    radial-gradient(ellipse 60% 45% at 90% 80%, rgba(80, 40, 120, 0.16), transparent 50%),
+    #0a0c12 !important;
+  background-attachment: fixed !important;
+}
+
+/* Base page color only when bg script hasn't run yet */
+html:not(.has-site-bg) {
+  background: #0b0d12;
+}
+
+.site-content,
+.wrap,
+.page,
+.shell {
+  position: relative;
+  z-index: 1;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Demo split view */
+.layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 42vh 1fr;
+  }
+}
+
+.layout .panel {
+  background: linear-gradient(
+    180deg,
+    rgba(18, 22, 31, 0.92) 0%,
+    rgba(14, 18, 25, 0.94) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.layout .stage {
+  background: #05070c;
+  z-index: 1;
+}
+
+.panel {
+  overflow: auto;
+  background: linear-gradient(180deg, var(--panel) 0%, rgba(14, 18, 25, 0.94) 100%);
+  border-right: 1px solid var(--border);
+  padding: 1.1rem 1.2rem 2rem;
+}
+
+.panel header {
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.crumb {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.panel h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.02em;
+}
+
+.panel .lede {
+  color: var(--muted);
+  margin: 0;
+  font-size: 13px;
+}
+
+.panel h2 {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin: 1.25rem 0 0.45rem;
+}
+
+.panel p, .panel li {
+  color: #c5cddd;
+  font-size: 13px;
+}
+
+.panel ul {
+  margin: 0.3rem 0 0.5rem;
+  padding-left: 1.15rem;
+}
+
+.panel code, .code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+
+pre.codeblock {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+  background: #0a0e16;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  overflow-x: auto;
+  color: #b8c7e0;
+  margin: 0.4rem 0 0.7rem;
+}
+
+.tagrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0.25rem;
+}
+
+.tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--panel-2);
+}
+
+.tag.ref { border-color: #3a5068; color: var(--accent); }
+.tag.stack { border-color: #4a3f28; color: var(--accent-2); }
+
+.controls {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.6rem;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+}
+
+.control label {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.control .val {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.control input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.control.checkbox {
+  grid-template-columns: auto 1fr;
+}
+
+.control.checkbox input { accent-color: var(--accent); }
+
+.note {
+  margin-top: 0.8rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--accent-2);
+  background: rgba(255, 184, 107, 0.06);
+  border-radius: 0 8px 8px 0;
+  color: #d8c9a8;
+  font-size: 12.5px;
+}
+
+.note strong { color: var(--accent-2); }
+
+.stage {
+  position: relative;
+  min-height: 0;
+  background: #05070c;
+}
+
+.stage canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.hud {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.hud span {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 0.3rem 0.5rem;
+  background: rgba(8, 12, 20, 0.75);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  backdrop-filter: blur(6px);
+}
+
+.nav-next {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 1.4rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.eq {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--good);
+  background: rgba(125, 222, 162, 0.06);
+  border: 1px solid rgba(125, 222, 162, 0.25);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  margin: 0.4rem 0;
+}

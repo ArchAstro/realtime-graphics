@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>03 · Deformation buffer</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 03 / 12</div>
+        <h1>Persistent deformation buffer</h1>
+        <p class="lede">Click/drag to dig. Depression + displaced mass (berms). Slow refill. This is the shared state feet and spells write into.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW §2.3</span>
+          <span class="tag stack">RTT · ping-pong</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>R</strong> channel — depression depth</li>
+        <li><strong>G</strong> channel — displaced mass (berms)</li>
+        <li>Brush splat each frame while interacting</li>
+        <li>Diffusion + decay pass softens trails over time</li>
+        <li>Vertex displacement samples R−G so trenches go down and berms up</li>
+      </ul>
+      <div class="eq">h' = h₀ − depression + mass · bermScale</div>
+      <p>
+        Production demos use a <strong>toroidal</strong> window that scrolls with the player
+        (<code>uv = fract(worldXZ / size)</code>) so you never copy the whole buffer.
+      </p>
+
+      <h2>Prompt match</h2>
+      <p>“Displaced mass — do not skip this.” “A trail that does not self-shadow is a failure.”</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Brush radius</label><span class="val" id="v-rad">0.08</span>
+          <input id="rad" type="range" min="0.03" max="0.18" step="0.005" value="0.08" />
+        </div>
+        <div class="control">
+          <label>Dig strength</label><span class="val" id="v-str">0.35</span>
+          <input id="str" type="range" min="0.05" max="0.8" step="0.01" value="0.35" />
+        </div>
+        <div class="control">
+          <label>Refill rate</label><span class="val" id="v-ref">0.15</span>
+          <input id="ref" type="range" min="0" max="1" step="0.01" value="0.15" />
+        </div>
+        <div class="control checkbox">
+          <input id="showBuf" type="checkbox" />
+          <label>Visualize buffer (R=depression, G=mass)</label>
+        </div>
+      </div>
+      <div class="note"><strong>Drag</strong> on the terrain to dig. Watch raised edges form — without the G channel you’d only get flat footprints.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> · <a href="/prompts/02-desert-explorer/">Desert explorer</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#03-deformation-buffer">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./02-layered-wind-noise.html">← Wind noise</a>
+        <a href="./04-multi-scale-shading.html">Next: multi-scale →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage">
+      <div class="hud"><span id="hud">click + drag to dig</span></div>
+    </main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c1420);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(6, 8, 10);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enablePan = false;
+    // disable orbit while digging
+    let digging = false;
+
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.5));
+    const sun = new THREE.DirectionalLight(0xffeecc, 1.2);
+    sun.position.set(5, 12, 3);
+    scene.add(sun);
+
+    const RES = 256;
+    const rtA = new THREE.WebGLRenderTarget(RES, RES, {
+      type: THREE.HalfFloatType,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      depthBuffer: false,
+    });
+    const rtB = rtA.clone();
+    let readRT = rtA, writeRT = rtB;
+
+    // clear buffers
+    renderer.setRenderTarget(rtA);
+    renderer.setClearColor(0x000000, 0);
+    renderer.clear();
+    renderer.setRenderTarget(rtB);
+    renderer.clear();
+    renderer.setRenderTarget(null);
+
+    const simScene = new THREE.Scene();
+    const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const simUniforms = {
+      tPrev: { value: readRT.texture },
+      uBrush: { value: new THREE.Vector4(-10, -10, 0, 0) }, // xy uv, z radius, w strength
+      uRefill: { value: 0.15 },
+      uDt: { value: 0.016 },
+    };
+    const simMat = new THREE.ShaderMaterial({
+      uniforms: simUniforms,
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+      fragmentShader: /* glsl */`
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D tPrev;
+        uniform vec4 uBrush;
+        uniform float uRefill, uDt;
+
+        void main(){
+          vec4 c = texture2D(tPrev, vUv);
+          float dep = c.r;
+          float mass = c.g;
+
+          // 4-tap diffusion
+          vec2 e = vec2(1.0/256.0, 0.0);
+          float dL = texture2D(tPrev, vUv-e).r;
+          float dR = texture2D(tPrev, vUv+e).r;
+          float dD = texture2D(tPrev, vUv-e.yx).r;
+          float dU = texture2D(tPrev, vUv+e.yx).r;
+          float mL = texture2D(tPrev, vUv-e).g;
+          float mR = texture2D(tPrev, vUv+e).g;
+          float mD = texture2D(tPrev, vUv-e.yx).g;
+          float mU = texture2D(tPrev, vUv+e.yx).g;
+
+          // berms diffuse faster than packed trench floor
+          float depDiff = (dL+dR+dD+dU)*0.25 - dep;
+          float massDiff = (mL+mR+mD+mU)*0.25 - mass;
+          dep += depDiff * 0.8 * uRefill * uDt * 8.0;
+          mass += massDiff * 2.4 * uRefill * uDt * 8.0;
+
+          // berm slumps into depression
+          float slump = min(mass, dep) * 0.5 * uRefill * uDt * 6.0;
+          mass -= slump;
+          dep -= slump * 0.35;
+
+          // exponential decay
+          float decay = exp(-uRefill * uDt * 0.35);
+          dep *= decay;
+          mass *= decay;
+
+          // brush: dig center, ring mass
+          if (uBrush.w > 0.0) {
+            float d = distance(vUv, uBrush.xy);
+            float r = uBrush.z;
+            float core = smoothstep(r, r*0.2, d);
+            float ring = smoothstep(r*0.5, r, d) * smoothstep(r*1.4, r, d);
+            dep += core * uBrush.w * 0.08;
+            mass += ring * uBrush.w * 0.1;
+          }
+
+          dep = clamp(dep, 0., 2.);
+          mass = clamp(mass, 0., 2.);
+          gl_FragColor = vec4(dep, mass, 0., 1.);
+        }
+      `,
+    });
+    const simQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), simMat);
+    simScene.add(simQuad);
+
+    const terrainUniforms = {
+      tDef: { value: readRT.texture },
+      uShowBuf: { value: 0 },
+    };
+    const terrainMat = new THREE.ShaderMaterial({
+      uniforms: terrainUniforms,
+      vertexShader: /* glsl */`
+        varying vec2 vUv;
+        varying vec3 vW;
+        uniform sampler2D tDef;
+        void main(){
+          vUv = uv;
+          float dep = texture2D(tDef, uv).r;
+          float mass = texture2D(tDef, uv).g;
+          vec3 p = position;
+          p.y += -dep * 1.8 + mass * 1.1;
+          vW = (modelMatrix * vec4(p,1.)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec2 vUv;
+        varying vec3 vW;
+        uniform sampler2D tDef;
+        uniform float uShowBuf;
+        void main(){
+          vec4 d = texture2D(tDef, vUv);
+          if (uShowBuf > 0.5) {
+            gl_FragColor = vec4(d.r, d.g, 0.15, 1.0);
+            return;
+          }
+          vec3 dx = dFdx(vW), dy = dFdy(vW);
+          vec3 n = normalize(cross(dx, dy));
+          float ndl = clamp(dot(n, normalize(vec3(0.3,1.,0.2))), 0., 1.);
+          // compressed snow darker
+          float comp = smoothstep(0.0, 0.4, d.r);
+          vec3 col = mix(vec3(0.85, 0.9, 0.95), vec3(0.55, 0.62, 0.7), comp);
+          col *= 0.22 + 0.78 * ndl;
+          // self-shadow-ish from normal only; production adds CSM on displaced geo
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const terrain = new THREE.Mesh(new THREE.PlaneGeometry(10, 10, 180, 180), terrainMat);
+    terrain.rotation.x = -Math.PI / 2;
+    scene.add(terrain);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const hit = new THREE.Vector3();
+
+    function uvFromEvent(e) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      if (raycaster.ray.intersectPlane(plane, hit)) {
+        // terrain is 10x10 centered
+        return new THREE.Vector2(hit.x / 10 + 0.5, hit.z / 10 + 0.5);
+      }
+      return null;
+    }
+
+    let brush = { x: -10, y: -10, r: 0.08, s: 0 };
+    renderer.domElement.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      digging = true;
+      controls.enabled = false;
+      const uv = uvFromEvent(e);
+      if (uv) { brush.x = uv.x; brush.y = uv.y; brush.s = strength; }
+    });
+    renderer.domElement.addEventListener("pointermove", (e) => {
+      if (!digging) return;
+      const uv = uvFromEvent(e);
+      if (uv) { brush.x = uv.x; brush.y = uv.y; brush.s = strength; }
+    });
+    addEventListener("pointerup", () => {
+      digging = false;
+      controls.enabled = true;
+      brush.s = 0;
+    });
+
+    let strength = 0.35, refill = 0.15;
+    const el = (id) => document.getElementById(id);
+    el("rad").oninput = (e) => { brush.r = +e.target.value; el("v-rad").textContent = brush.r.toFixed(3); };
+    el("str").oninput = (e) => { strength = +e.target.value; el("v-str").textContent = strength.toFixed(2); };
+    el("ref").oninput = (e) => { refill = +e.target.value; el("v-ref").textContent = refill.toFixed(2); };
+    el("showBuf").onchange = (e) => { terrainUniforms.uShowBuf.value = e.target.checked ? 1 : 0; };
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const clock = new THREE.Clock();
+    (function frame() {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      simUniforms.uDt.value = dt;
+      simUniforms.uRefill.value = refill;
+      simUniforms.tPrev.value = readRT.texture;
+      simUniforms.uBrush.value.set(brush.x, brush.y, brush.r, brush.s);
+
+      renderer.setRenderTarget(writeRT);
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(null);
+
+      // swap
+      const tmp = readRT; readRT = writeRT; writeRT = tmp;
+      terrainUniforms.tDef.value = readRT.texture;
+
+      // decay brush pulse when not moving
+      if (!digging) brush.s = 0;
+
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

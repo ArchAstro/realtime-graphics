@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Techniques — Realtime Graphics Prompts</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <style>
+    body { overflow: auto; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    .nav { font-size: 12px; color: var(--muted); margin-bottom: 1rem; }
+    h1 { font-size: 1.7rem; margin: 0 0 0.45rem; letter-spacing: -0.02em; }
+    .lede { color: var(--muted); max-width: 62ch; margin: 0 0 1.5rem; line-height: 1.55; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .btn {
+      display: inline-flex; padding: 0.55rem 0.9rem; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+      font-size: 13px; text-decoration: none;
+    }
+    .btn:hover { border-color: var(--accent); text-decoration: none; }
+    .btn.primary { background: linear-gradient(135deg,#1a3a55,#163048); border-color:#3a6a90; color:#d7efff; }
+    h2.sec {
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--accent); margin: 2rem 0 0.75rem;
+    }
+    .table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+    table.toc {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      font-size: 13px;
+      background: rgba(12, 16, 26, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    table.toc th, table.toc td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.7rem 0.85rem;
+      text-align: left;
+      vertical-align: top;
+      line-height: 1.4;
+    }
+    table.toc tr:last-child td { border-bottom: 0; }
+    table.toc th {
+      background: rgba(26, 32, 48, 0.95);
+      color: var(--accent);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    table.toc td:first-child {
+      font-family: var(--mono);
+      color: var(--accent);
+      width: 2.5rem;
+      white-space: nowrap;
+    }
+    table.toc td:nth-child(3) { width: 4rem; white-space: nowrap; }
+    table.toc .prompts-cell { font-size: 12px; max-width: 14rem; }
+    table.toc .prompts-cell a {
+      display: inline-block;
+      margin: 0.12rem 0.15rem 0.12rem 0;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(26,32,48,0.7);
+      font-size: 11.5px;
+    }
+    table.toc .prompts-cell a:hover { border-color: var(--accent); text-decoration: none; }
+    article.tech {
+      padding: 1.15rem 1.2rem; margin: 0 0 0.85rem;
+      border: 1px solid var(--border); border-radius: 14px;
+      background: rgba(12, 16, 26, 0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    }
+    article.tech header { display: flex; gap: 0.75rem; align-items: baseline; margin-bottom: 0.45rem; }
+    article.tech .tech-num {
+      font-family: var(--mono); font-size: 12px; color: var(--accent); min-width: 1.6rem;
+    }
+    article.tech h2 {
+      font-size: 1.1rem; margin: 0; text-transform: none; letter-spacing: -0.01em; color: var(--text);
+    }
+    article.tech p { color: #c5cddd; font-size: 13.5px; line-height: 1.55; margin: 0.35rem 0; }
+    article.tech .seen { color: var(--muted); font-size: 12.5px; }
+    article.tech .match {
+      font-size: 12.5px; color: #b8d4a8;
+      background: rgba(125,222,162,0.06); border: 1px solid rgba(125,222,162,0.2);
+      border-radius: 8px; padding: 0.5rem 0.65rem; margin: 0.65rem 0;
+    }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.65rem; }
+    .chip {
+      display: inline-block; padding: 0.35rem 0.65rem; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel-2);
+      color: var(--text); font-size: 12px; text-decoration: none;
+    }
+    .chip:hover { border-color: var(--accent); text-decoration: none; }
+    .chip.primary { border-color: #3a6a90; color: #d7efff; background: #163048; }
+    .rules ol { color: #c5cddd; font-size: 13.5px; line-height: 1.55; padding-left: 1.2rem; }
+    .pgrid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.65rem;
+    }
+    .pcard {
+      display: block; padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: 12px;
+      background: rgba(12, 16, 26, 0.94); backdrop-filter: blur(12px); color: inherit; text-decoration: none;
+    }
+    .pcard:hover { border-color: var(--accent); text-decoration: none; }
+    .pcard .n { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+    .pcard h3 { font-size: 0.95rem; margin: 0.25rem 0; color: var(--text); font-weight: 600; }
+    .pcard p { margin: 0; font-size: 12.5px; color: var(--muted); }
+    .pcard .related { margin-top: 0.5rem; font-size: 11.5px; color: #8fa8c4; }
+    .table-wrap table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 0.5rem 0; }
+    .table-wrap th, .table-wrap td { border: 1px solid var(--border); padding: 0.35rem 0.5rem; text-align: left; }
+    .table-wrap th { background: var(--panel-2); color: var(--accent); width: 35%; }
+  </style>
+</head>
+<body>
+  <div class="wrap site-content">
+    <div class="nav">
+      <a href="/">Home</a> ·
+      <a href="/techniques/">Techniques</a> ·
+      <a href="/techniques/demos/">Live demos</a> ·
+      <a href="/prompts/">Prompt archive</a>
+    </div>
+    <h1>Realtime graphics techniques</h1>
+    <p class="lede">
+      A learning map distilled from the AI-built demos in the prompt archive.
+      Each technique has a short explanation, a live WebGL demo, and links to the
+      source prompts that used the idea.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="/techniques/demos/">Open all live demos →</a>
+      <a class="btn" href="/prompts/">Browse prompt archive</a>
+      <a class="btn" href="#prompt-index">Jump to prompt index</a>
+    </div>
+
+    <h2 class="sec">Curriculum</h2>
+    <div class="table-wrap">
+      <table class="toc">
+        <thead>
+          <tr><th>#</th><th>Technique</th><th>Demo</th><th>Why it matters</th><th>Source prompts</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>01</td><td><a href="#01-geometry-clipmap">Geometry clipmap terrain</a></td><td><a href="/techniques/demos/01-geometry-clipmap.html">demo</a></td><td>Infinite ground at high near density, one draw</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> <a href="/prompts/02-desert-explorer/">Desert explorer</a></td></tr><tr><td>02</td><td><a href="#02-layered-wind-noise">Layered wind-anisotropic noise</a></td><td><a href="/techniques/demos/02-layered-wind-noise.html">demo</a></td><td>Dunes that look carved by weather, not isotropic fBm</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> <a href="/prompts/02-desert-explorer/">Desert explorer</a></td></tr><tr><td>03</td><td><a href="#03-deformation-buffer">Persistent deformation buffer</a></td><td><a href="/techniques/demos/03-deformation-buffer.html">demo</a></td><td>Footprints/spells with berms that self-shadow</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> <a href="/prompts/02-desert-explorer/">Desert explorer</a></td></tr><tr><td>04</td><td><a href="#04-multi-scale-shading">Multi-scale snow / surface shading</a></td><td><a href="/techniques/demos/04-multi-scale-shading.html">demo</a></td><td>Detail that reads at dune, ripple, and grain scales</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></td></tr><tr><td>05</td><td><a href="#05-wrap-sss">Wrapped diffuse + cheap SSS</a></td><td><a href="/techniques/demos/05-wrap-sss.html">demo</a></td><td>The term that makes snow/skin look translucent</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></td></tr><tr><td>06</td><td><a href="#06-sdf-blend-shell">SDF blend-shell characters</a></td><td><a href="/techniques/demos/06-sdf-blend-shell.html">demo</a></td><td>Seamless procedural bodies without raymarching</td><td class="prompts-cell"><a href="/prompts/06-sdf-blend-shell-creatures/">SDF blend-shell creatures</a></td></tr><tr><td>07</td><td><a href="#07-floating-origin">Floating origin + log depth</a></td><td><a href="/techniques/demos/07-floating-origin.html">demo</a></td><td>Large worlds without jitter and z-fighting</td><td class="prompts-cell"><a href="/prompts/04-the-long-silence/">The Long Silence</a></td></tr><tr><td>08</td><td><a href="#08-bake-vs-evaluate">Bake vs evaluate</a></td><td><a href="/techniques/demos/08-bake-vs-evaluate.html">demo</a></td><td>When noise is too expensive per pixel</td><td class="prompts-cell"><a href="/prompts/04-the-long-silence/">The Long Silence</a></td></tr><tr><td>09</td><td><a href="#09-atmosphere-sky">Analytic atmosphere / sky</a></td><td><a href="/techniques/demos/09-atmosphere-sky.html">demo</a></td><td>Sun elevation that moves the whole look</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> <a href="/prompts/04-the-long-silence/">The Long Silence</a></td></tr><tr><td>10</td><td><a href="#10-post-stack">Post stack + tonemap discipline</a></td><td><a href="/techniques/demos/10-post-stack.html">demo</a></td><td>TAA-ready polish without clipping snow white</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> <a href="/prompts/03-claude-of-duty/">Claude of Duty</a> <a href="/prompts/04-the-long-silence/">The Long Silence</a></td></tr><tr><td>11</td><td><a href="#11-swept-mesh">Swept-mesh wake / ribbon VFX</a></td><td><a href="/techniques/demos/11-swept-mesh.html">demo</a></td><td>Coherent water/snow bodies, not particle mush</td><td class="prompts-cell"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></td></tr><tr><td>12</td><td><a href="#12-procedural-pbr">Procedural PBR texture forge</a></td><td><a href="/techniques/demos/12-procedural-pbr.html">demo</a></td><td>Zero art assets, tiled materials from noise</td><td class="prompts-cell"><a href="/prompts/03-claude-of-duty/">Claude of Duty</a> <a href="/prompts/05-solebound-shoe-repair/">SOLEBOUND</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="sec">Techniques in depth</h2>
+    
+    <article class="tech" id="01-geometry-clipmap">
+      <header>
+        <div class="tech-num">01</div>
+        <h2>Geometry clipmap terrain</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW, desert explorer</p>
+      <p>Nested rings of mesh (or a single mesh tagged by ring level) centered on the player. Triangle density is high near the camera and falls off with distance. Vertices store only grid indices; world placement, CDLOD morphing, and height sampling happen in the <strong>vertex shader</strong> — no CPU rebuild, no per-frame upload of positions.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> geometry clipmap or nested-ring LOD · sub-10 cm inner spacing · one static mesh, one draw call</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/01-geometry-clipmap.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a><a class="chip" href="/prompts/02-desert-explorer/">Desert explorer</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="02-layered-wind-noise">
+      <header>
+        <div class="tech-num">02</div>
+        <h2>Layered wind-anisotropic noise</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW heightfield, desert dunes</p>
+      <p>Do not use a single fBm stack. Compose <strong>broad forms</strong> (tens of metres), <strong>medium drifts</strong> (metres), and <strong>fine ripples</strong> (decimetres). Stretch and shear medium/fine layers along a prevailing wind so lee faces and transverse ridges appear.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> directional structure carved by a prevailing wind · sastrugi · lee-face asymmetry</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/02-layered-wind-noise.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a><a class="chip" href="/prompts/02-desert-explorer/">Desert explorer</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="03-deformation-buffer">
+      <header>
+        <div class="tech-num">03</div>
+        <h2>Persistent deformation buffer</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW §2.3, desert sand spells</p>
+      <p>A player-following render target stores world interaction: depression depth, displaced mass (berms), and compression/ice for shading. Address with <strong>toroidal</strong> UVs (<code>fract(worldXZ / size)</code>). Feet, surf, and spells all write through one <code>brush()</code>. Displace geometry in beauty <em>and</em> shadow passes so trails self-shadow. Refill with diffusion + decay.</p>
+      <div class="table-wrap"><table><tr><th>Depression</th><td>How far the surface is pushed down</td></tr><tr><th>Displaced mass</th><td>Raised berms at trail edges</td></tr><tr><th>Compression / ice</th><td>Material state for shading</td></tr></table></div>
+      <p class="match"><strong>Prompt match:</strong> persistent and additive · never rebuild from a list of past events · trail that does not self-shadow is a failure</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/03-deformation-buffer.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a><a class="chip" href="/prompts/02-desert-explorer/">Desert explorer</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="04-multi-scale-shading">
+      <header>
+        <div class="tech-num">04</div>
+        <h2>Multi-scale snow / surface shading</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW snow material</p>
+      <p>Blend normals (and sometimes albedo detail) at multiple tiling frequencies by distance and slope. Add <strong>triplanar</strong> on steep faces. Analytic derivatives from the heightfield feed macro slope; fine scales provide grain.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> detail at three tiling scales · surface detail legible at three distinct scales simultaneously</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/04-multi-scale-shading.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="05-wrap-sss">
+      <header>
+        <div class="tech-num">05</div>
+        <h2>Wrapped diffuse + cheap SSS</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW snow SSS, spell lights through berms</p>
+      <p>Snow and skin go dark too fast under Lambertian N·L. <strong>Wrapped diffuse</strong> softens the terminator; a <strong>back-scatter</strong> term adds a blue-white glow on the lit-through side. Dynamic lights should share the same SSS include as the sun.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> this single term does more for reads-as-snow than almost anything else</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/05-wrap-sss.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="06-sdf-blend-shell">
+      <header>
+        <div class="tech-num">06</div>
+        <h2>SDF blend-shell characters</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> Fable procedural creatures</p>
+      <p>Author a character from capsules/cones. In the vertex shader, snap each vertex onto the <strong>smooth-min SDF surface</strong> of all primitives so seams vanish. Normals from the SDF gradient. Still ordinary mesh rendering (cheap), not full-screen raymarching.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> ragdoll-like primitives that look like one seamless body · mobile-performant tech-art solution</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/06-sdf-blend-shell.html">Open live demo →</a>
+        <a class="chip" href="/prompts/06-sdf-blend-shell-creatures/">SDF blend-shell creatures</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="07-floating-origin">
+      <header>
+        <div class="tech-num">07</div>
+        <h2>Floating origin + log depth</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> The Long Silence</p>
+      <p>At planetary scale, float32 world positions jitter. Keep the <strong>player/ship at the origin</strong> and translate the world relative to it each frame. Use a <strong>logarithmic depth buffer</strong> (and opt custom shaders into it) so nested spheres don’t z-fight.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> one world unit is one kilometre · floating origin · LOGD_* chunks</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/07-floating-origin.html">Open live demo →</a>
+        <a class="chip" href="/prompts/04-the-long-silence/">The Long Silence</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="08-bake-vs-evaluate">
+      <header>
+        <div class="tech-num">08</div>
+        <h2>Bake vs evaluate</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> Long Silence planet cubemaps</p>
+      <p>Twenty octaves of simplex per pixel per frame is not free. Bake expensive fields into textures/cubemaps at load (or when the view changes), then sample cheaply at runtime. Prefer cubemaps over equirect for planets (no poles/seams).</p>
+      
+      <p class="match"><strong>Prompt match:</strong> planets are baked, not evaluated · runtime shader is three texture taps</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/08-bake-vs-evaluate.html">Open live demo →</a>
+        <a class="chip" href="/prompts/04-the-long-silence/">The Long Silence</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="09-atmosphere-sky">
+      <header>
+        <div class="tech-num">09</div>
+        <h2>Analytic atmosphere / sky</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW Nishita LUT, Long Silence Rayleigh shell</p>
+      <p>An analytic single-scattering sky (or a baked LUT driven by one) ties sun color, horizon warmth, and ambient tint to sun elevation. Stock HDRIs look good but don’t re-light correctly when you scrub time of day.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> low warm sun · ambient strongly blue-shifted · elevation slider correctly drags horizon warmth</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/09-atmosphere-sky.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a><a class="chip" href="/prompts/04-the-long-silence/">The Long Silence</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="10-post-stack">
+      <header>
+        <div class="tech-num">10</div>
+        <h2>Post stack + tonemap discipline</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW, Long Silence, Claude of Duty</p>
+      <p>Typical order: prepass → TAA → SSAO → SSR (selective) → DOF → bloom → volumetrics → AgX/ACES → grain → sharpen → FXAA. TAA stabilizes glints. Bloom in <strong>exposed</strong> units. Snow’s primary failure mode is <strong>clipped pure white</strong> — watch highlight roll-off. Measure 1% lows, not only average FPS.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> blown-out white is the primary failure mode · TAA is essential</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/10-post-stack.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a><a class="chip" href="/prompts/03-claude-of-duty/">Claude of Duty</a><a class="chip" href="/prompts/04-the-long-silence/">The Long Silence</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="11-swept-mesh">
+      <header>
+        <div class="tech-num">11</div>
+        <h2>Swept-mesh wake / ribbon VFX</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> SNOWFLOW snow-surf wake + water spells</p>
+      <p>Coherent fluid/snow bodies are <strong>swept meshes</strong> along a spine (path history in a data texture), not particle clouds. Cross-section (curl/amplitude) encodes a breaking wave; normals from the same function as geometry.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> wake is a swept mesh, not a particle effect · one curl parameter from bank to hanging lip</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/11-swept-mesh.html">Open live demo →</a>
+        <a class="chip" href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a>
+      </div>
+    </article>
+    
+    <article class="tech" id="12-procedural-pbr">
+      <header>
+        <div class="tech-num">12</div>
+        <h2>Procedural PBR texture forge</h2>
+      </header>
+      <p class="seen"><strong>Seen in:</strong> Claude of Duty materials, Solebound leather</p>
+      <p>Generate albedo / roughness / height from tiled noise at load, derive normals via Sobel or analytic derivatives, optional triplanar and edge wear from curvature. Zero runtime art pipeline.</p>
+      
+      <p class="match"><strong>Prompt match:</strong> GPU texture forge · no art assets · periodic noise so everything tiles</p>
+      <div class="chip-row">
+        <a class="chip primary" href="/techniques/demos/12-procedural-pbr.html">Open live demo →</a>
+        <a class="chip" href="/prompts/03-claude-of-duty/">Claude of Duty</a><a class="chip" href="/prompts/05-solebound-shoe-repair/">SOLEBOUND</a>
+      </div>
+    </article>
+    
+
+    <h2 class="sec">Cross-cutting engineering rules</h2>
+    <div class="rules tech" style="padding:1rem 1.2rem;border:1px solid var(--border);border-radius:14px;background:linear-gradient(165deg,#141a26,#0c1018)">
+      <p style="color:var(--muted);font-size:13px;margin:0 0 0.5rem">These show up in every strong demo — put them in every prompt:</p>
+      
+<ol>
+  <li><strong>Zero allocations in the render loop</strong> — GC hitches destroy the AAA read</li>
+  <li><strong>Pipeline prewarm</strong> — first spell cast must not compile mid-frame</li>
+  <li><strong>1% low / p99 frame time</strong>, not average FPS alone</li>
+  <li><strong>Shared includes</strong> — beauty and shadow use the same displacement/SSS code</li>
+  <li><strong>Quality toggles</strong> for every pass (A/B what costs quality)</li>
+  <li><strong>Milestone screenshot gates</strong> — don’t proceed while it’s ugly</li>
+</ol>
+
+    </div>
+
+    <h2 class="sec" id="prompt-index">Prompt archive index</h2>
+    <p class="lede" style="margin-bottom:0.85rem">Each entry is a readable HTML page with the original prompt text, metadata, and related technique demos.</p>
+    <div class="pgrid">
+      
+    <a class="pcard" href="/prompts/01-snowflow-waterbending/">
+      <div class="n">01</div>
+      <h3>SNOWFLOW waterbending</h3>
+      <p>Full WebGPU implementation brief</p>
+      <div class="related">Techniques: Geometry clipmap terrain, Layered wind-anisotropic noise, Persistent deformation buffer, Multi-scale snow / surface shading, Wrapped diffuse + cheap SSS, Analytic atmosphere / sky, Post stack + tonemap discipline, Swept-mesh wake / ribbon VFX</div>
+    </a>
+    <a class="pcard" href="/prompts/02-desert-explorer/">
+      <div class="n">02</div>
+      <h3>Desert explorer</h3>
+      <p>Process notes + reconstructed seed</p>
+      <div class="related">Techniques: Geometry clipmap terrain, Layered wind-anisotropic noise, Persistent deformation buffer</div>
+    </a>
+    <a class="pcard" href="/prompts/03-claude-of-duty/">
+      <div class="n">03</div>
+      <h3>Claude of Duty</h3>
+      <p>Matt Shumer orchestrator FPS prompt</p>
+      <div class="related">Techniques: Post stack + tonemap discipline, Procedural PBR texture forge</div>
+    </a>
+    <a class="pcard" href="/prompts/04-the-long-silence/">
+      <div class="n">04</div>
+      <h3>The Long Silence</h3>
+      <p>Space game initial + visual /goal</p>
+      <div class="related">Techniques: Floating origin + log depth, Bake vs evaluate, Analytic atmosphere / sky, Post stack + tonemap discipline</div>
+    </a>
+    <a class="pcard" href="/prompts/05-solebound-shoe-repair/">
+      <div class="n">05</div>
+      <h3>SOLEBOUND</h3>
+      <p>Max-effort shoe repair sim</p>
+      <div class="related">Techniques: Procedural PBR texture forge</div>
+    </a>
+    <a class="pcard" href="/prompts/06-sdf-blend-shell-creatures/">
+      <div class="n">06</div>
+      <h3>SDF blend-shell creatures</h3>
+      <p>Fable procedural critters</p>
+      <div class="related">Techniques: SDF blend-shell characters</div>
+    </a>
+    <a class="pcard" href="/prompts/07-bustling-3d-city/">
+      <div class="n">07</div>
+      <h3>Bustling 3D city</h3>
+      <p>One-shot city scene</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    <a class="pcard" href="/prompts/08-cod-zombies-clone/">
+      <div class="n">08</div>
+      <h3>COD Zombies clone</h3>
+      <p>Lazy one-liner FPS</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    <a class="pcard" href="/prompts/09-tower-crane-construction/">
+      <div class="n">09</div>
+      <h3>Tower crane sim</h3>
+      <p>Autonomous construction</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    <a class="pcard" href="/prompts/10-panama-canal-locks/">
+      <div class="n">10</div>
+      <h3>Panama Canal locks</h3>
+      <p>Lock transit bake-off prompt</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    <a class="pcard" href="/prompts/11-painterly-grass-world/">
+      <div class="n">11</div>
+      <h3>Painterly grass world</h3>
+      <p>Reconstruction seed</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    <a class="pcard" href="/prompts/12-luxury-mansion-night/">
+      <div class="n">12</div>
+      <h3>Luxury mansion night</h3>
+      <p>One-shot environment</p>
+      <div class="related">Techniques: —</div>
+    </a>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>04 · Multi-scale shading</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 04 / 12</div>
+        <h1>Multi-scale surface shading</h1>
+        <p class="lede">Detail that survives at dune scale, ripple scale, and grain scale — blend normals by distance (and slope).</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW snow</span>
+          <span class="tag stack">normals · triplanar</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <p>
+        One normal map (or noise normal) at a single frequency looks wrong up close <em>or</em>
+        far away. Sample <strong>three frequencies</strong> and lerp weights with camera distance:
+      </p>
+      <pre class="codeblock">n = nMacro
+n = normalize(mix(n, nMeso, wMeso))
+n = normalize(mix(n, nMicro, wMicro))</pre>
+      <p>
+        On steep faces, UV projection stretches — switch to <strong>triplanar</strong>
+        (blend projections from XY / YZ / ZX by world normal).
+      </p>
+
+      <h2>Prompt match</h2>
+      <p>“Surface detail is legible at three distinct scales simultaneously: dunes, ripples, and grain.”</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Macro weight</label><span class="val" id="v-a">1.0</span>
+          <input id="a" type="range" min="0" max="1" step="0.01" value="1" />
+        </div>
+        <div class="control">
+          <label>Meso weight</label><span class="val" id="v-b">1.0</span>
+          <input id="b" type="range" min="0" max="1" step="0.01" value="1" />
+        </div>
+        <div class="control">
+          <label>Micro weight</label><span class="val" id="v-c">1.0</span>
+          <input id="c" type="range" min="0" max="1" step="0.01" value="1" />
+        </div>
+        <div class="control checkbox">
+          <input id="distBlend" type="checkbox" checked />
+          <label>Distance-based blend (real behavior)</label>
+        </div>
+        <div class="control checkbox">
+          <input id="showN" type="checkbox" />
+          <label>Visualize normals</label>
+        </div>
+      </div>
+      <div class="note"><strong>Orbit closer/farther</strong> with distance blend on — micro detail fades in near, macro dominates at range.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#04-multi-scale-shading">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./03-deformation-buffer.html">← Deformation</a>
+        <a href="./05-wrap-sss.html">Next: wrap SSS →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">multi-scale normals</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a121c);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+    camera.position.set(0, 8, 14);
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0x445566, 0.4));
+    const light = new THREE.DirectionalLight(0xffe8c8, 1.3);
+    light.position.set(4, 10, 2);
+    scene.add(light);
+
+    const uniforms = {
+      uA: { value: 1 }, uB: { value: 1 }, uC: { value: 1 },
+      uDistBlend: { value: 1 }, uShowN: { value: 0 },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: /* glsl */`
+        varying vec3 vWPos;
+        varying vec3 vN;
+        varying vec2 vUv;
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+        float n2(vec2 p){
+          vec2 i=floor(p), f=fract(p);
+          float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+          vec2 u=f*f*(3.-2.*f);
+          return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+        }
+        float fbm(vec2 p){ float s=0.,a=.5; for(int i=0;i<4;i++){s+=a*n2(p);p=p*2.1+3.;a*=.5;} return s; }
+        void main(){
+          vUv = uv;
+          vec3 p = position;
+          // macro height for the mesh itself
+          float h = fbm(p.xz * 0.15) * 1.8;
+          p.y += h;
+          // analytic-ish normal from height
+          float e=0.2;
+          float hx = fbm((p.xz+vec2(e,0))*0.15)-fbm((p.xz-vec2(e,0))*0.15);
+          float hz = fbm((p.xz+vec2(0,e))*0.15)-fbm((p.xz-vec2(0,e))*0.15);
+          vN = normalize(vec3(-hx/(2.*e)*1.8, 1.0, -hz/(2.*e)*1.8));
+          vWPos = (modelMatrix * vec4(p,1.)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec3 vWPos;
+        varying vec3 vN;
+        varying vec2 vUv;
+        uniform float uA,uB,uC,uDistBlend,uShowN;
+
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+        float n2(vec2 p){
+          vec2 i=floor(p), f=fract(p);
+          float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+          vec2 u=f*f*(3.-2.*f);
+          return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+        }
+        // noise normal from heightfield of n2
+        vec3 noiseNormal(vec2 p, float scale, float strength){
+          float e = 0.02;
+          float hL = n2((p+vec2(-e,0))*scale);
+          float hR = n2((p+vec2( e,0))*scale);
+          float hD = n2((p+vec2(0,-e))*scale);
+          float hU = n2((p+vec2(0, e))*scale);
+          return normalize(vec3((hL-hR)*strength, 1.0, (hD-hU)*strength));
+        }
+        vec3 blendN(vec3 a, vec3 b, float w){
+          return normalize(vec3(a.xy + b.xy * w, a.z)); // RN-style-ish in tangent; we work world-ish
+        }
+
+        void main(){
+          vec3 nMacro = normalize(vN);
+          // treat as world-upish surface
+          vec3 n0 = noiseNormal(vWPos.xz, 0.35, 1.2 * uA); // macro ripples
+          vec3 n1 = noiseNormal(vWPos.xz, 1.8, 0.9 * uB);
+          vec3 n2s = noiseNormal(vWPos.xz, 9.0, 0.55 * uC);
+
+          float dist = length(cameraPosition - vWPos);
+          // when distance blend on: micro only near, meso mid, macro far
+          float wMicro = uDistBlend > 0.5 ? smoothstep(18.0, 3.0, dist) : 1.0;
+          float wMeso  = uDistBlend > 0.5 ? smoothstep(40.0, 8.0, dist) : 1.0;
+
+          vec3 n = nMacro;
+          // reorient detail normals onto macro
+          n = normalize(n + (n0 - vec3(0,1,0)) * uA);
+          n = normalize(n + (n1 - vec3(0,1,0)) * uB * wMeso);
+          n = normalize(n + (n2s - vec3(0,1,0)) * uC * wMicro);
+
+          if (uShowN > 0.5) {
+            gl_FragColor = vec4(n * 0.5 + 0.5, 1.0);
+            return;
+          }
+          vec3 L = normalize(vec3(0.4, 0.85, 0.25));
+          float ndl = clamp(dot(n, L), 0., 1.);
+          vec3 base = vec3(0.78, 0.84, 0.9);
+          vec3 col = base * (0.2 + 0.8 * ndl);
+          // micro shadowing cue
+          col *= 0.92 + 0.08 * n.y;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(30, 30, 160, 160), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    scene.add(mesh);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    [["a","uA","v-a"],["b","uB","v-b"],["c","uC","v-c"]].forEach(([id, u, vid]) => {
+      el(id).oninput = (e) => {
+        uniforms[u].value = +e.target.value;
+        el(vid).textContent = (+e.target.value).toFixed(2);
+      };
+    });
+    el("distBlend").onchange = (e) => { uniforms.uDistBlend.value = e.target.checked ? 1 : 0; };
+    el("showN").onchange = (e) => { uniforms.uShowN.value = e.target.checked ? 1 : 0; };
+
+    (function frame() {
+      controls.update();
+      const d = camera.position.length();
+      el("hud").textContent = `cam dist ${d.toFixed(1)} · micro ${uniforms.uDistBlend.value ? "distance-faded" : "forced"}`;
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

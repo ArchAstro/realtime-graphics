@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Technique demos — realtime graphics</title>
+  <link rel="stylesheet" href="../shared.css" />
+  <style>
+    body { overflow: auto; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 { font-size: 1.6rem; margin: 0 0 0.4rem; }
+    .intro { color: var(--muted); max-width: 58ch; margin-bottom: 1.5rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.85rem;
+    }
+    .card {
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.05rem;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(12, 16, 26, 0.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      color: inherit;
+      min-height: 150px;
+    }
+    .card .n {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .card h2 {
+      font-size: 1rem;
+      margin: 0 0 0.35rem;
+      color: var(--text);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .card > p { margin: 0 0 0.65rem; color: var(--muted); font-size: 12.5px; flex: 1; }
+    .card .actions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: auto; }
+    .card a.btn {
+      font-size: 12px;
+      padding: 0.3rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      text-decoration: none;
+    }
+    .card a.btn:hover { border-color: var(--accent); text-decoration: none; }
+    .card a.btn.primary {
+      border-color: #3a6a90;
+      background: #163048;
+      color: #d7efff;
+    }
+    .card .prompts {
+      margin-top: 0.55rem;
+      padding-top: 0.55rem;
+      border-top: 1px solid var(--border);
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .card .prompts a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap site-content">
+    <div class="crumb">
+      <a href="/">Home</a> ·
+      <a href="/techniques/">Techniques</a> ·
+      demos
+    </div>
+    <h1>Realtime graphics technique demos</h1>
+    <p class="intro">
+      Interactive WebGL sketches for ideas distilled from the AI demo prompt collection.
+      Each card links the live demo, the technique write-up, and the source prompts that used it.
+    </p>
+    <div class="grid" id="grid"></div>
+  </div>
+  <script>
+    const demos = [
+      ["01-geometry-clipmap", "Geometry clipmap", "Nested-ring LOD terrain, one draw, VS displacement"],
+      ["02-layered-wind-noise", "Layered wind noise", "Isotropic fBm vs wind-sheared dune fields"],
+      ["03-deformation-buffer", "Deformation buffer", "Paint depression + berms that refill over time"],
+      ["04-multi-scale-shading", "Multi-scale shading", "Macro + medium + micro normals blended by distance"],
+      ["05-wrap-sss", "Wrap + cheap SSS", "Why snow needs more than Lambert N·L"],
+      ["06-sdf-blend-shell", "SDF blend-shell", "Seamless capsule bodies without raymarching"],
+      ["07-floating-origin", "Floating origin", "Large worlds, precision jitter, log-depth intuition"],
+      ["08-bake-vs-evaluate", "Bake vs evaluate", "Expensive noise offline, cheap samples at runtime"],
+      ["09-atmosphere-sky", "Analytic sky", "Sun elevation drives color, haze, and contrast"],
+      ["10-post-stack", "Post + tonemap", "Bloom, AgX-ish roll-off, grain — toggle the stack"],
+      ["11-swept-mesh", "Swept-mesh wake", "Path spine → ribbon mesh, not particles"],
+      ["12-procedural-pbr", "Procedural PBR forge", "Noise → albedo/rough/normal on a sphere"],
+    ];
+
+    fetch("../catalog.json")
+      .then((r) => r.json())
+      .then((catalog) => {
+        const tech = catalog.techniques || {};
+        const prompts = catalog.prompts || {};
+        document.getElementById("grid").innerHTML = demos.map(([id, title, blurb], i) => {
+          const t = tech[id] || {};
+          const promptIds = t.prompts || [];
+          const promptLinks = promptIds
+            .map((pid) => {
+              const p = prompts[pid];
+              const label = p ? p.title : pid;
+              return `<a href="/prompts/${pid}/">${label}</a>`;
+            })
+            .join(" · ");
+          return `
+          <div class="card">
+            <div class="n">${String(i + 1).padStart(2, "0")}</div>
+            <h2>${title}</h2>
+            <p>${blurb}</p>
+            <div class="actions">
+              <a class="btn primary" href="./${id}.html">Open demo →</a>
+              <a class="btn" href="/techniques/#${id}">Technique notes</a>
+            </div>
+            <div class="prompts"><strong>Prompts:</strong> ${promptLinks || "—"}</div>
+          </div>`;
+        }).join("");
+      })
+      .catch(() => {
+        // Fallback without catalog
+        document.getElementById("grid").innerHTML = demos.map(([id, title, blurb], i) => `
+          <div class="card">
+            <div class="n">${String(i + 1).padStart(2, "0")}</div>
+            <h2>${title}</h2>
+            <p>${blurb}</p>
+            <div class="actions">
+              <a class="btn primary" href="./${id}.html">Open demo →</a>
+              <a class="btn" href="/techniques/#${id}">Technique notes</a>
+            </div>
+          </div>`).join("");
+      });
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

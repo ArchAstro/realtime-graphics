@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>02 · Layered wind noise</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 02 / 12</div>
+        <h1>Layered wind-anisotropic noise</h1>
+        <p class="lede">Isotropic fBm is “blobby.” Real dunes are stretched, sheared, and stacked by scale under a prevailing wind.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW · desert</span>
+          <span class="tag stack">heightfield</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <p>Compose three layers with different frequencies and amplitudes:</p>
+      <ul>
+        <li><strong>Macro</strong> — broad ridges (tens of m)</li>
+        <li><strong>Meso</strong> — drifts sheared along wind (metres)</li>
+        <li><strong>Micro</strong> — sastrugi / ripples (dm), strongly anisotropic</li>
+      </ul>
+      <p>
+        For anisotropy, sample noise in a frame aligned to wind:
+        <code>p' = (dot(p, wind), dot(p, perp) * stretch)</code>
+        so features elongate across the wind and compress along it (or vice versa).
+      </p>
+      <div class="eq">H = a₀ n(p/λ₀) + a₁ n(shear(p)/λ₁) + a₂ n(shear(p)/λ₂)</div>
+
+      <h2>Prompt match</h2>
+      <p>
+        “Do not use a single fBm octave stack… Encode a wind direction and let the medium
+        and fine layers stretch and shear along it.”
+      </p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Mode</label><span class="val" id="v-mode">wind-sheared</span>
+          <input id="mode" type="range" min="0" max="1" step="1" value="1" />
+        </div>
+        <div class="control">
+          <label>Wind angle</label><span class="val" id="v-ang">35°</span>
+          <input id="ang" type="range" min="0" max="360" step="1" value="35" />
+        </div>
+        <div class="control">
+          <label>Anisotropy (stretch)</label><span class="val" id="v-str">3.5</span>
+          <input id="str" type="range" min="1" max="6" step="0.1" value="3.5" />
+        </div>
+        <div class="control">
+          <label>Micro ripples</label><span class="val" id="v-mic">1.0</span>
+          <input id="mic" type="range" min="0" max="2" step="0.05" value="1" />
+        </div>
+      </div>
+      <div class="note"><strong>Compare:</strong> set mode to 0 for isotropic fBm — same frequencies, no wind frame. Structure collapses into generic noise.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> · <a href="/prompts/02-desert-explorer/">Desert explorer</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#02-layered-wind-noise">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./01-geometry-clipmap.html">← Clipmap</a>
+        <a href="./03-deformation-buffer.html">Next: deformation →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage">
+      <div class="hud"><span id="hud">layered dune field</span></div>
+    </main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x140e08);
+    scene.fog = new THREE.FogExp2(0x140e08, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+    camera.position.set(0, 28, 42);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+
+    const sun = new THREE.DirectionalLight(0xffd2a0, 1.4);
+    sun.position.set(-20, 30, 10);
+    scene.add(sun, new THREE.AmbientLight(0x334466, 0.35));
+    scene.add(new THREE.HemisphereLight(0x88aacc, 0x443311, 0.35));
+
+    const uniforms = {
+      uMode: { value: 1 },
+      uAng: { value: 35 * Math.PI / 180 },
+      uStretch: { value: 3.5 },
+      uMicro: { value: 1 },
+      uTime: { value: 0 },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: /* glsl */`
+        varying vec3 vPos;
+        varying vec3 vN;
+        uniform float uMode, uAng, uStretch, uMicro, uTime;
+
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+        float noise(vec2 p){
+          vec2 i=floor(p), f=fract(p);
+          float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+          vec2 u=f*f*(3.-2.*f);
+          return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+        }
+        // analytic-ish gradient via central differences for normal later
+        float fbmIso(vec2 p){
+          float s=0., a=0.5;
+          for(int i=0;i<6;i++){ s+=a*noise(p); p=p*2.05+13.1; a*=0.5; }
+          return s;
+        }
+        vec2 windFrame(vec2 p, float ang, float stretch){
+          float c=cos(ang), s=sin(ang);
+          vec2 w = vec2(c,s);
+          vec2 perp = vec2(-s,c);
+          // elongate perpendicular to wind (transverse ridges)
+          return vec2(dot(p,w), dot(p,perp)*stretch);
+        }
+        float height(vec2 p){
+          if (uMode < 0.5) {
+            return fbmIso(p * 0.12) * 4.0;
+          }
+          // layered wind field
+          vec2 pw = windFrame(p, uAng, 1.0);
+          // macro transverse dunes
+          float macro = noise(pw * vec2(0.035, 0.09)) * 3.2;
+          macro += 0.55 * noise(pw * vec2(0.07, 0.18) + 4.2);
+          // meso drifts sheared
+          vec2 pm = windFrame(p, uAng, uStretch);
+          float meso = noise(pm * 0.22) * 1.1;
+          meso += 0.4 * noise(pm * 0.45 + 9.0);
+          // micro ripples strongly anisotropic
+          vec2 pr = windFrame(p, uAng, uStretch * 1.4);
+          float micro = noise(pr * 1.8) * 0.22 * uMicro;
+          micro += noise(pr * 3.6 + 2.0) * 0.08 * uMicro;
+          // lee asymmetry: steepen one side via domain warp along wind
+          float asym = smoothstep(0.2, 0.8, noise(pw * vec2(0.05, 0.12)));
+          return macro + meso * mix(0.7, 1.2, asym) + micro;
+        }
+
+        void main(){
+          vec3 p = position;
+          float h = height(p.xz);
+          // finite differences for normal
+          float e = 0.35;
+          float hx = height(p.xz + vec2(e,0)) - height(p.xz - vec2(e,0));
+          float hz = height(p.xz + vec2(0,e)) - height(p.xz - vec2(0,e));
+          vec3 n = normalize(vec3(-hx/(2.*e), 1.0, -hz/(2.*e)));
+          p.y = h;
+          vPos = p;
+          vN = n;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec3 vPos;
+        varying vec3 vN;
+        void main(){
+          vec3 n = normalize(vN);
+          vec3 L = normalize(vec3(-0.4, 0.7, 0.3));
+          float ndl = clamp(dot(n,L), 0., 1.);
+          // sand palette
+          vec3 col = mix(vec3(0.45,0.32,0.18), vec3(0.85,0.72,0.48), clamp(vPos.y*0.15+0.4,0.,1.));
+          // cooler ambient in creases
+          float amb = 0.2 + 0.15 * n.y;
+          col = col * (amb + 0.85 * ndl);
+          // specular sparkle-ish
+          vec3 V = normalize(cameraPosition - vPos);
+          vec3 H = normalize(L+V);
+          float spec = pow(clamp(dot(n,H),0.,1.), 48.0) * 0.12;
+          col += spec * vec3(1.0, 0.95, 0.85);
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(80, 80, 220, 220), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    // plane was XY; we used position.xz in shader expecting Y-up height — rotate so plane XZ
+    // Actually PlaneGeometry is XY; after rot -90 X, local Y becomes world -Z. Simpler: don't rotate, displace Y in shader on a XZ plane built manually.
+    scene.remove(mesh);
+
+    // Build XZ plane
+    const geo = new THREE.PlaneGeometry(80, 80, 220, 220);
+    geo.rotateX(-Math.PI / 2);
+    const terrain = new THREE.Mesh(geo, mat);
+    scene.add(terrain);
+
+    // wind arrow
+    const arrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0, 6, 0), 12, 0x6ec8ff, 2, 1.5);
+    scene.add(arrow);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    function setMode(v) {
+      uniforms.uMode.value = v;
+      el("v-mode").textContent = v < 0.5 ? "isotropic fBm" : "wind-sheared";
+      el("hud").textContent = v < 0.5 ? "isotropic — blobby" : "wind-sheared — structured dunes";
+    }
+    el("mode").oninput = (e) => setMode(+e.target.value);
+    el("ang").oninput = (e) => {
+      const d = +e.target.value;
+      uniforms.uAng.value = d * Math.PI / 180;
+      el("v-ang").textContent = d + "°";
+      arrow.setDirection(new THREE.Vector3(Math.cos(uniforms.uAng.value), 0, Math.sin(uniforms.uAng.value)));
+    };
+    el("str").oninput = (e) => {
+      uniforms.uStretch.value = +e.target.value;
+      el("v-str").textContent = (+e.target.value).toFixed(1);
+    };
+    el("mic").oninput = (e) => {
+      uniforms.uMicro.value = +e.target.value;
+      el("v-mic").textContent = (+e.target.value).toFixed(2);
+    };
+    // init arrow
+    el("ang").dispatchEvent(new Event("input"));
+
+    const clock = new THREE.Clock();
+    (function frame() {
+      uniforms.uTime.value = clock.getElapsedTime();
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

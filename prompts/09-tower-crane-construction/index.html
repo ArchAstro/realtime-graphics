@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tower crane sim — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/08-cod-zombies-clone/">← COD Zombies clone</a>
+        <a href="/prompts/10-panama-canal-locks/">Panama Canal locks →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">09</span>
+        <span class="hero-id">09-tower-crane-construction</span>
+      </div>
+      <h1>Tower crane sim</h1>
+      <p class="hero-blurb">Autonomous construction</p>
+      <div class="hero-actions">
+        <a class="btn" href="https://x.com/HarshithLucky3/status/2082162301185180048" target="_blank" rel="noopener">X / Twitter ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#prompt">Prompt</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Long-horizon <em>simulation</em> (not combat game) — autonomous crane erecting a full 8-storey steel building. Functional process animation, one-shot Opus 5 High.</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Author</span><div class="fact-val">Harshith (<code>@HarshithLucky3</code>)</div></div><div class="fact"><span class="fact-key">Model</span><div class="fact-val">Claude Opus 5 High</div></div><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">Three.js</div></div><div class="fact"><span class="fact-key">X</span><div class="fact-val"><a href="https://x.com/HarshithLucky3/status/2082162301185180048" target="_blank" rel="noopener">https://x.com/HarshithLucky3/status/2082162301185180048</a></div></div><div class="fact"><span class="fact-key">Video length</span><div class="fact-val">~5 minutes continuous construction</div></div></div>
+            
+          </div>
+        </section>
+
+        
+        <section class="card prompt-panel" id="prompt">
+          <div class="card-head">
+            <h2>Prompt</h2>
+            
+              <div style="display:flex;align-items:center;gap:0.65rem">
+                <span class="copy-status" id="copy-status"></span>
+                <button type="button" class="btn ghost" id="copy-prompt">Copy prompt</button>
+              </div>
+          </div>
+          <div class="card-body">
+            <div class="prompt-body" id="prompt-source" data-raw="# Tower crane — one-shot prompt
+
+Source: [@HarshithLucky3 on X](https://x.com/HarshithLucky3/status/2082162301185180048)
+
+```
+3D simulation of autonomous tower crane erecting a full 8 storey steel building in three js
+```
+
+## Why this works as a prompt class
+
+Short domain-specific simulation prompts with:
+
+1. **Agent** (autonomous tower crane)
+2. **Process** (erecting)
+3. **Concrete deliverable** (full 8-storey steel building)
+4. **Stack** (Three.js)
+
+…tend to produce coherent multi-minute sequences better than vague &quot;cool construction scene&quot; asks.
+">
+              <div class="doc"><h1 id="tower-crane-one-shot-prompt">Tower crane — one-shot prompt</h1>
+<p>Source: <a href="https://x.com/HarshithLucky3/status/2082162301185180048" target="_blank" rel="noopener">@HarshithLucky3 on X</a></p>
+<pre class="codeblock"><code>3D simulation of autonomous tower crane erecting a full 8 storey steel building in three js</code></pre>
+<h2 id="why-this-works-as-a-prompt-class">Why this works as a prompt class</h2>
+<p>Short domain-specific simulation prompts with:</p>
+<ol>
+<li>1. <strong>Agent</strong> (autonomous tower crane)</li>
+<li>2. <strong>Process</strong> (erecting)</li>
+<li>3. <strong>Concrete deliverable</strong> (full 8-storey steel building)</li>
+<li>4. <strong>Stack</strong> (Three.js)</li>
+</ol>
+<p>…tend to produce coherent multi-minute sequences better than vague &quot;cool construction scene&quot; asks.</p></div>
+            </div>
+          </div>
+        </section>
+        
+        
+
+        <div class="footer-nav pager">
+          <a href="/prompts/08-cod-zombies-clone/">← COD Zombies clone</a>
+          <a href="/prompts/10-panama-canal-locks/">Panama Canal locks →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>

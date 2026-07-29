@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>01 · Geometry clipmap</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 01 / 12</div>
+        <h1>Geometry clipmap</h1>
+        <p class="lede">Nested rings of terrain centered on the camera: dense near, sparse far — one mesh, one draw, displacement in the vertex shader.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW · desert</span>
+          <span class="tag stack">WebGL · Three.js</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <p>
+        Instead of one huge heightmapped plane, you build <strong>concentric rings</strong>
+        (or one mesh with a ring-level attribute). Ring 0 has ~fine spacing; each outer ring
+        doubles the world extent covered per vertex.
+      </p>
+      <ul>
+        <li>Vertex attributes: <code>gridIndex</code>, <code>ringLevel</code> only</li>
+        <li>VS places the vertex in world XZ from those indices + camera center</li>
+        <li>Height sampled from a noise / height texture in the VS</li>
+        <li>Optional CDLOD morph blends the seam between rings</li>
+      </ul>
+      <div class="eq">cost ≈ O(ringVerts) draws: 1 · no CPU rebuild</div>
+
+      <h2>Why it matches the demos</h2>
+      <p>
+        SNOWFLOW ships 8 rings, 8.5&nbsp;cm inner spacing, ~870&nbsp;m radius, 333k tris —
+        <em>one static mesh</em>. The desert explorer uses the same idea with Three.js TSL.
+      </p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Inner spacing (relative)</label><span class="val" id="v-spacing">1.0</span>
+          <input id="spacing" type="range" min="0.5" max="2" step="0.05" value="1" />
+        </div>
+        <div class="control">
+          <label>Height scale</label><span class="val" id="v-height">4.0</span>
+          <input id="height" type="range" min="0" max="10" step="0.1" value="4" />
+        </div>
+        <div class="control checkbox">
+          <input id="colorRings" type="checkbox" checked />
+          <label>Color by ring level (teaching view)</label>
+        </div>
+        <div class="control checkbox">
+          <input id="wire" type="checkbox" />
+          <label>Wireframe</label>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Try:</strong> drag to orbit. Toggle ring colors — outer rings cover more world
+        space per triangle. That’s the LOD win.
+      </div>
+
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> · <a href="/prompts/02-desert-explorer/">Desert explorer</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#01-geometry-clipmap">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./index.html">← All demos</a>
+        <a href="./02-layered-wind-noise.html">Next: wind noise →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage">
+      <div class="hud"><span id="hud">rings · tris</span></div>
+    </main>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a1018);
+    scene.fog = new THREE.Fog(0x0a1018, 40, 160);
+
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 500);
+    camera.position.set(18, 22, 28);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    scene.add(new THREE.AmbientLight(0x6688aa, 0.55));
+    const sun = new THREE.DirectionalLight(0xffe2b0, 1.3);
+    sun.position.set(30, 50, 10);
+    scene.add(sun);
+
+    const RINGS = 6;
+    const SEGS = 48; // per ring side
+
+    function buildClipmap() {
+      const positions = [];
+      const rings = [];
+      const uvs = [];
+      const indices = [];
+      let vBase = 0;
+      let totalTris = 0;
+
+      for (let r = 0; r < RINGS; r++) {
+        const inner = r === 0 ? 0 : Math.pow(2, r - 1) * 4;
+        const outer = Math.pow(2, r) * 4;
+        // grid on ring band
+        const n = SEGS;
+        for (let j = 0; j <= n; j++) {
+          for (let i = 0; i <= n; i++) {
+            const u = i / n;
+            const v = j / n;
+            // map unit square to ring annulus in a simple way: square rings
+            const x = THREE.MathUtils.lerp(-outer, outer, u);
+            const z = THREE.MathUtils.lerp(-outer, outer, v);
+            // keep only annulus (rough square ring)
+            const ax = Math.abs(x), az = Math.abs(z);
+            const maxc = Math.max(ax, az);
+            if (r > 0 && maxc < inner * 0.98) {
+              // still push a degenerate? skip by marking invalid later — use full grid for simplicity
+            }
+            positions.push(x, 0, z);
+            rings.push(r);
+            uvs.push(u, v);
+          }
+        }
+        for (let j = 0; j < n; j++) {
+          for (let i = 0; i < n; i++) {
+            const a = vBase + j * (n + 1) + i;
+            const b = a + 1;
+            const c = a + (n + 1);
+            const d = c + 1;
+            // skip cells fully inside inner for r>0
+            const cx = (positions[a * 3] + positions[d * 3]) * 0.5;
+            const cz = (positions[a * 3 + 2] + positions[d * 3 + 2]) * 0.5;
+            const maxc = Math.max(Math.abs(cx), Math.abs(cz));
+            if (r > 0 && maxc < inner) continue;
+            indices.push(a, c, b, b, c, d);
+            totalTris += 2;
+          }
+        }
+        vBase += (n + 1) * (n + 1);
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute("ring", new THREE.Float32BufferAttribute(rings, 1));
+      geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      geo.setIndex(indices);
+      return { geo, totalTris };
+    }
+
+    const { geo, totalTris } = buildClipmap();
+    const uniforms = {
+      uHeight: { value: 4 },
+      uSpacing: { value: 1 },
+      uColorRings: { value: 1 },
+      uTime: { value: 0 },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      wireframe: false,
+      vertexShader: /* glsl */`
+        attribute float ring;
+        varying float vRing;
+        varying vec3 vWorld;
+        varying float vH;
+        uniform float uHeight;
+        uniform float uSpacing;
+        uniform float uTime;
+
+        // simple value noise
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        float noise(vec2 p){
+          vec2 i = floor(p), f = fract(p);
+          float a = hash(i), b = hash(i+vec2(1,0)), c = hash(i+vec2(0,1)), d = hash(i+vec2(1,1));
+          vec2 u = f*f*(3.-2.*f);
+          return mix(a,b,u.x) + (c-a)*u.y*(1.-u.x) + (d-b)*u.x*u.y;
+        }
+        float fbm(vec2 p){
+          float s = 0., a = 0.5;
+          for(int i=0;i<5;i++){ s += a*noise(p); p = p*2.03 + 17.1; a *= 0.5; }
+          return s;
+        }
+
+        void main(){
+          vRing = ring;
+          vec3 p = position * uSpacing;
+          // CDLOD-ish: outer rings get slightly smoother sampling (fewer high freqs)
+          float lod = ring;
+          vec2 xz = p.xz * 0.08;
+          float h = fbm(xz) * uHeight;
+          h *= mix(1.0, 0.65, clamp(lod / 5.0, 0., 1.));
+          p.y = h;
+          vH = h;
+          vWorld = p;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying float vRing;
+        varying vec3 vWorld;
+        varying float vH;
+        uniform float uColorRings;
+
+        void main(){
+          // slope approx via screen-space derivatives
+          vec3 dx = dFdx(vWorld);
+          vec3 dy = dFdy(vWorld);
+          vec3 n = normalize(cross(dx, dy));
+          float ndl = clamp(dot(n, normalize(vec3(0.4, 1.0, 0.2))), 0., 1.);
+
+          vec3 base = mix(vec3(0.35, 0.42, 0.28), vec3(0.55, 0.5, 0.38), smoothstep(-1., 6., vH));
+          // teaching palette by ring
+          vec3 ringCol = 0.5 + 0.5 * cos(vec3(0.,2.,4.) + vRing * 0.9);
+          vec3 col = mix(base, ringCol, uColorRings * 0.55);
+          col *= 0.25 + 0.75 * ndl;
+          // grid hint
+          float g = min(abs(fract(vWorld.x*0.25)-0.5), abs(fract(vWorld.z*0.25)-0.5));
+          col = mix(col, col * 0.75, smoothstep(0.02, 0.0, g) * 0.35 * (1.0 - uColorRings * 0.5));
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    scene.add(mesh);
+
+    // player marker at origin (clipmap center)
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.4, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0x6ec8ff, emissive: 0x12344a })
+    );
+    marker.position.y = 2;
+    scene.add(marker);
+
+    document.getElementById("hud").textContent =
+      `${RINGS} rings · ~${totalTris.toLocaleString()} tris · 1 draw`;
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    el("spacing").oninput = (e) => {
+      uniforms.uSpacing.value = +e.target.value;
+      el("v-spacing").textContent = (+e.target.value).toFixed(2);
+    };
+    el("height").oninput = (e) => {
+      uniforms.uHeight.value = +e.target.value;
+      el("v-height").textContent = (+e.target.value).toFixed(1);
+    };
+    el("colorRings").onchange = (e) => { uniforms.uColorRings.value = e.target.checked ? 1 : 0; };
+    el("wire").onchange = (e) => { mat.wireframe = e.target.checked; };
+
+    const clock = new THREE.Clock();
+    function frame() {
+      uniforms.uTime.value = clock.getElapsedTime();
+      marker.position.y = 1.5 + Math.sin(uniforms.uTime.value * 2) * 0.2;
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

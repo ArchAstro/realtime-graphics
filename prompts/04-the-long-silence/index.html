@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>The Long Silence — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/03-claude-of-duty/">← Claude of Duty</a>
+        <a href="/prompts/05-solebound-shoe-repair/">SOLEBOUND →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">04</span>
+        <span class="hero-id">04-the-long-silence</span>
+      </div>
+      <h1>The Long Silence</h1>
+      <p class="hero-blurb">Space game initial + visual /goal</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="https://longsilence.anshu.dev" target="_blank" rel="noopener">Open demo ↗</a>
+<a class="btn" href="https://github.com/achimala/TheLongSilence" target="_blank" rel="noopener">GitHub ↗</a>
+<a class="btn" href="https://x.com/anshuc/status/2081801979131818412" target="_blank" rel="noopener">Writeup ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#prompt">Prompts</a>
+<a href="#techniques">Techniques</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Full space game (flight, land, scan, fold drive, star map) with photoreal aspirations, browser verification tools, and an explicit adversarial judge against Starfield. Prompt + process fully published by Anshu (<code>@anshuc</code>).</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Author</span><div class="fact-val">Anshu (<code>@anshuc</code> / GitHub <code>achimala</code>)</div></div><div class="fact"><span class="fact-key">Model</span><div class="fact-val">Claude Opus 5 (+ Blender MCP skill for hard-surface assets)</div></div><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">Three.js, WebGL2, hand-written GLSL, Vite</div></div><div class="fact"><span class="fact-key">Demo</span><div class="fact-val"><a href="https://longsilence.anshu.dev" target="_blank" rel="noopener">https://longsilence.anshu.dev</a></div></div><div class="fact"><span class="fact-key">Repo</span><div class="fact-val"><a href="https://github.com/achimala/TheLongSilence" target="_blank" rel="noopener">https://github.com/achimala/TheLongSilence</a></div></div><div class="fact"><span class="fact-key">X writeup</span><div class="fact-val"><a href="https://x.com/anshuc/status/2081801979131818412" target="_blank" rel="noopener">https://x.com/anshuc/status/2081801979131818412</a></div></div></div>
+            <div class="doc overview-doc" style="margin-top:1rem"><h2 id="prompts">Prompts</h2>
+<ol>
+<li>1. <a href="./prompt-initial.md" target="_blank" rel="noopener"><code>prompt-initial.md</code></a> — empty-repo first build (high effort)</li>
+<li>2. <a href="./prompt-visual-goal.md" target="_blank" rel="noopener"><code>prompt-visual-goal.md</code></a> — overnight <code>/goal</code> visual overhaul with impartial judge</li>
+</ol>
+<h2 id="process-notes-from-author">Process notes (from author)</h2>
+<ul>
+<li>Adversarial subagent critique vs AAA space games (pattern from Claude of Duty)</li>
+<li>Blender MCP so Claude models its own assets → skill <code>blender-hardsurface</code></li>
+<li>Judge never allowed to be relaxed; Claude did not finish the goal (kept iterating overnight until manually stopped)</li>
+</ul></div>
+          </div>
+        </section>
+
+        
+        <section class="card prompt-panel" id="prompt">
+          <div class="card-head">
+            <h2>Prompt · initial</h2>
+            
+              <div style="display:flex;align-items:center;gap:0.65rem">
+                <span class="copy-status" id="copy-status"></span>
+                <button type="button" class="btn ghost" id="copy-prompt">Copy prompt</button>
+              </div>
+          </div>
+          <div class="card-body">
+            <div class="prompt-body" id="prompt-source" data-raw="# The Long Silence — initial prompt (high effort)
+
+Source: [@anshuc on X](https://x.com/anshuc/status/2081801979131818412)
+
+```
+This is an empty repo. I want you to build a space exploration game using Three.js. Don&#x27;t ask me questions, just build whatever game mechanics you think would be cool to evoke a sense of exploration. The primary non-negotiable thing is that it needs to look absolutely mind-blowing, AAA game studio quality, unlike anything anyone&#x27;s ever seen from a web game. I want a photorealistic aesthetic here, not low-res/low-poly or the usual plasticky/shiny artificial look that games often have.
+
+I want the game to have the player piloting a ship through space. They should be able to walk around the ship and interact with various elements and controls, but also sit down at the cockpit and pilot the ship around space. Sweat all the details to a AAA game quality bar: graphics, storyline, sound, even menus and HUD elements. Build everything yourself, don&#x27;t download external assets or code (beyond three.js)
+
+Build a core game loop around this idea. User should fly the ship, discover things, learn, build towards some goal, have a reason to go to the next place and keep exploring. Make it easy to understand and guide the player through the game (without just force-feeding them a bunch of tutorials/popups - show, don&#x27;t tell). I want the immense scale of space to really come through, but you need to balance that with not making flying around tedious.
+
+You must verify everything yourself in browser and make sure the game works correctly end to end at smooth 60fps. When you think you&#x27;re done, take a screenshot. If it doesn&#x27;t look like a AAA game or a literal photo of space, you&#x27;re not done, improve the graphics.
+```
+">
+              <div class="doc"><h1 id="the-long-silence-initial-prompt-high-effort">The Long Silence — initial prompt (high effort)</h1>
+<p>Source: <a href="https://x.com/anshuc/status/2081801979131818412" target="_blank" rel="noopener">@anshuc on X</a></p>
+<pre class="codeblock"><code>This is an empty repo. I want you to build a space exploration game using Three.js. Don&#x27;t ask me questions, just build whatever game mechanics you think would be cool to evoke a sense of exploration. The primary non-negotiable thing is that it needs to look absolutely mind-blowing, AAA game studio quality, unlike anything anyone&#x27;s ever seen from a web game. I want a photorealistic aesthetic here, not low-res/low-poly or the usual plasticky/shiny artificial look that games often have.
+
+I want the game to have the player piloting a ship through space. They should be able to walk around the ship and interact with various elements and controls, but also sit down at the cockpit and pilot the ship around space. Sweat all the details to a AAA game quality bar: graphics, storyline, sound, even menus and HUD elements. Build everything yourself, don&#x27;t download external assets or code (beyond three.js)
+
+Build a core game loop around this idea. User should fly the ship, discover things, learn, build towards some goal, have a reason to go to the next place and keep exploring. Make it easy to understand and guide the player through the game (without just force-feeding them a bunch of tutorials/popups - show, don&#x27;t tell). I want the immense scale of space to really come through, but you need to balance that with not making flying around tedious.
+
+You must verify everything yourself in browser and make sure the game works correctly end to end at smooth 60fps. When you think you&#x27;re done, take a screenshot. If it doesn&#x27;t look like a AAA game or a literal photo of space, you&#x27;re not done, improve the graphics.</code></pre></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card prompt-panel" id="prompt-1">
+          <div class="card-head">
+            <h2>Prompt · visual goal</h2>
+            
+          </div>
+          <div class="card-body">
+            <div class="prompt-body" id="prompt-source-1" data-raw="# The Long Silence — visual overhaul `/goal` (max effort)
+
+Source: [@anshuc on X](https://x.com/anshuc/status/2081801979131818412)
+
+Ran for ~24h; Claude did not finish because the judge kept critiquing.
+
+```
+/goal I want you to make this game absolutely mind blowing visually - review in browser and pull out all the stops. Keep everything procedurally generated but push as hard as possible on the visuals, do everything custom if you need to. Delegate work to parallel subagents to work efficiently.
+
+The universe should feel alive, with tons of things to do. You should be able to fly anywhere, meet other ships, and land on the planets. Everything should have gorgeous cutscenes and feel fluid, with no abrupt cuts.
+
+You have access to Blender, running on this laptop. Read the Blender skill and have a subagent use it to model high-quality assets. I think you cannot parallelize this so you will need to queue it up for that agent. Right now many assets look blocky and obviously procedural. I don&#x27;t want to see anything like this; I want to see intentional, beautiful 3d models.
+
+There are various artifacts: z-fighting, weird banding, etc. You need to dump sheets of frames across cutscenes and gameplay, look for these, and fix them.
+
+Goal verification: Set up an independent, impartial judge subagent. This should literally look at screenshots of AAA space games like Starfield, compare to screenshots of our games, and provide specific criticism, then you must address it. Your goal is to reach that level of visual fidelity at 60fps in browser. You cannot mark the goal done until the judge says our game actually looks as good as the AAA games. The judge must consider meshes, textures, lighting, shader effects, menus, transitions, etc. in its assessment. Every aspect of the visuals, in detail. You cannot alter the judge&#x27;s prompt to try to relax this condition. You are capable of reaching this bar - try your hardest and don&#x27;t give up.
+```
+">
+              <div class="doc"><h1 id="the-long-silence-visual-overhaul-goal-max-effort">The Long Silence — visual overhaul <code>/goal</code> (max effort)</h1>
+<p>Source: <a href="https://x.com/anshuc/status/2081801979131818412" target="_blank" rel="noopener">@anshuc on X</a></p>
+<p>Ran for ~24h; Claude did not finish because the judge kept critiquing.</p>
+<pre class="codeblock"><code>/goal I want you to make this game absolutely mind blowing visually - review in browser and pull out all the stops. Keep everything procedurally generated but push as hard as possible on the visuals, do everything custom if you need to. Delegate work to parallel subagents to work efficiently.
+
+The universe should feel alive, with tons of things to do. You should be able to fly anywhere, meet other ships, and land on the planets. Everything should have gorgeous cutscenes and feel fluid, with no abrupt cuts.
+
+You have access to Blender, running on this laptop. Read the Blender skill and have a subagent use it to model high-quality assets. I think you cannot parallelize this so you will need to queue it up for that agent. Right now many assets look blocky and obviously procedural. I don&#x27;t want to see anything like this; I want to see intentional, beautiful 3d models.
+
+There are various artifacts: z-fighting, weird banding, etc. You need to dump sheets of frames across cutscenes and gameplay, look for these, and fix them.
+
+Goal verification: Set up an independent, impartial judge subagent. This should literally look at screenshots of AAA space games like Starfield, compare to screenshots of our games, and provide specific criticism, then you must address it. Your goal is to reach that level of visual fidelity at 60fps in browser. You cannot mark the goal done until the judge says our game actually looks as good as the AAA games. The judge must consider meshes, textures, lighting, shader effects, menus, transitions, etc. in its assessment. Every aspect of the visuals, in detail. You cannot alter the judge&#x27;s prompt to try to relax this condition. You are capable of reaching this bar - try your hardest and don&#x27;t give up.</code></pre></div>
+            </div>
+          </div>
+        </section>
+        
+        
+        <section class="card" id="techniques">
+          <div class="card-head"><h2>Related techniques</h2></div>
+          <div class="card-body">
+            <div class="tech-grid">
+            <div class="tech-card">
+              <div class="t-title">Floating origin + log depth</div>
+              <div class="t-why">Large worlds without jitter and z-fighting</div>
+              <div class="t-links">
+                <a href="/techniques/#07-floating-origin">Notes</a>
+                <a href="/techniques/demos/07-floating-origin.html">Live demo</a>
+              </div>
+            </div>
+            <div class="tech-card">
+              <div class="t-title">Bake vs evaluate</div>
+              <div class="t-why">When noise is too expensive per pixel</div>
+              <div class="t-links">
+                <a href="/techniques/#08-bake-vs-evaluate">Notes</a>
+                <a href="/techniques/demos/08-bake-vs-evaluate.html">Live demo</a>
+              </div>
+            </div>
+            <div class="tech-card">
+              <div class="t-title">Analytic atmosphere / sky</div>
+              <div class="t-why">Sun elevation that moves the whole look</div>
+              <div class="t-links">
+                <a href="/techniques/#09-atmosphere-sky">Notes</a>
+                <a href="/techniques/demos/09-atmosphere-sky.html">Live demo</a>
+              </div>
+            </div>
+            <div class="tech-card">
+              <div class="t-title">Post stack + tonemap discipline</div>
+              <div class="t-why">TAA-ready polish without clipping snow white</div>
+              <div class="t-links">
+                <a href="/techniques/#10-post-stack">Notes</a>
+                <a href="/techniques/demos/10-post-stack.html">Live demo</a>
+              </div>
+            </div></div>
+          </div>
+        </section>
+
+        <div class="footer-nav pager">
+          <a href="/prompts/03-claude-of-duty/">← Claude of Duty</a>
+          <a href="/prompts/05-solebound-shoe-repair/">SOLEBOUND →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>

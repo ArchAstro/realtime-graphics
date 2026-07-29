@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>08 · Bake vs evaluate</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 08 / 12</div>
+        <h1>Bake vs evaluate</h1>
+        <p class="lede">Twenty octaves of noise per pixel is a tax. Bake once, sample forever (or re-bake when the view changes).</p>
+        <div class="tagrow">
+          <span class="tag ref">Long Silence planets</span>
+          <span class="tag stack">offline → runtime</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>Evaluate:</strong> fBm in the fragment shader every frame — flexible, expensive</li>
+        <li><strong>Bake:</strong> render the field into a texture (or cubemap faces) once; runtime does a few taps + lighting</li>
+        <li>Planets: cubemap beats equirect (no poles/seams)</li>
+        <li>Normals from height via finite differences on the bake, not more noise octaves</li>
+      </ul>
+      <div class="eq">cost_eval ∝ pixels × octaves · cost_bake = O(once) + O(taps)</div>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Mode</label><span class="val" id="v-mode">evaluate</span>
+          <input id="mode" type="range" min="0" max="1" step="1" value="0" />
+        </div>
+        <div class="control">
+          <label>Octaves (evaluate path)</label><span class="val" id="v-oct">8</span>
+          <input id="oct" type="range" min="1" max="12" step="1" value="8" />
+        </div>
+        <div class="control">
+          <label for="rebake">Re-bake now</label>
+          <button id="rebake" style="grid-column:1/-1;padding:0.45rem;border-radius:6px;border:1px solid var(--border);background:var(--panel-2);color:var(--text);cursor:pointer">Bake texture</button>
+        </div>
+      </div>
+      <div class="note">Watch the fake “ms” meter — evaluate scales with octaves; bake stays flat after the one-time cost.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/04-the-long-silence/">The Long Silence</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#08-bake-vs-evaluate">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./07-floating-origin.html">← Floating origin</a>
+        <a href="./09-atmosphere-sky.html">Next: sky →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">mode</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x05060a);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.set(0, 0, 3.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    const BAKE = 512;
+    const bakeRT = new THREE.WebGLRenderTarget(BAKE, BAKE, {
+      minFilter: THREE.LinearMipmapLinearFilter,
+      magFilter: THREE.LinearFilter,
+      generateMipmaps: true,
+    });
+
+    const noiseGLSL = `
+      float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){
+        vec2 i=floor(p), f=fract(p);
+        float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+        vec2 u=f*f*(3.-2.*f);
+        return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+      }
+      float fbm(vec2 p, int oct){
+        float s=0., a=0.5;
+        for(int i=0;i<12;i++){
+          if(i>=oct) break;
+          s += a * noise(p);
+          p = p*2.05 + 17.0;
+          a *= 0.5;
+        }
+        return s;
+      }
+    `;
+
+    // bake pass
+    const bakeScene = new THREE.Scene();
+    const bakeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const bakeMat = new THREE.ShaderMaterial({
+      uniforms: { uOct: { value: 10 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+      fragmentShader: noiseGLSL + `
+        varying vec2 vUv; uniform float uOct;
+        void main(){
+          vec2 p = vUv * 6.0;
+          float h = fbm(p, int(uOct));
+          // pack height + simple normal-ish
+          float e=0.003;
+          float hx = fbm(p+vec2(e,0), int(uOct)) - fbm(p-vec2(e,0), int(uOct));
+          float hy = fbm(p+vec2(0,e), int(uOct)) - fbm(p-vec2(0,e), int(uOct));
+          vec3 n = normalize(vec3(-hx, -hy, 0.08));
+          gl_FragColor = vec4(h, n.xy * 0.5 + 0.5);
+        }`,
+    });
+    bakeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bakeMat));
+
+    function bake() {
+      const t0 = performance.now();
+      renderer.setRenderTarget(bakeRT);
+      renderer.render(bakeScene, bakeCam);
+      renderer.setRenderTarget(null);
+      const ms = performance.now() - t0;
+      lastBakeMs = ms;
+      return ms;
+    }
+
+    let lastBakeMs = 0;
+    bake();
+
+    const uniforms = {
+      uMode: { value: 0 },
+      uOct: { value: 8 },
+      tBake: { value: bakeRT.texture },
+      uTime: { value: 0 },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+        void main(){
+          vUv = uv;
+          vN = normalize(normalMatrix * normal);
+          vec4 w = modelMatrix * vec4(position,1.);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: noiseGLSL + `
+        varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+        uniform float uMode, uOct, uTime;
+        uniform sampler2D tBake;
+        void main(){
+          vec3 N;
+          float h;
+          if (uMode < 0.5) {
+            // evaluate every pixel
+            vec2 p = vUv * 6.0 + uTime * 0.02;
+            h = fbm(p, int(uOct));
+            float e=0.003;
+            float hx = fbm(p+vec2(e,0), int(uOct)) - fbm(p-vec2(e,0), int(uOct));
+            float hy = fbm(p+vec2(0,e), int(uOct)) - fbm(p-vec2(0,e), int(uOct));
+            N = normalize(mat3(modelMatrix) * normalize(vec3(-hx, -hy, 0.08)));
+            // remap to sphere-ish normal blend
+            N = normalize(mix(normalize(vN), N, 0.85));
+          } else {
+            vec4 b = texture2D(tBake, vUv);
+            h = b.r;
+            vec3 nTex = vec3(b.g * 2. - 1., b.b * 2. - 1., 0.08);
+            nTex = normalize(nTex);
+            N = normalize(mix(normalize(vN), mat3(modelMatrix) * nTex, 0.85));
+          }
+          vec3 L = normalize(vec3(0.4, 0.6, 0.5));
+          float ndl = clamp(dot(N,L),0.,1.);
+          vec3 col = mix(vec3(0.1,0.15,0.35), vec3(0.6,0.75,0.55), h);
+          col = mix(col, vec3(0.95,0.95,0.9), smoothstep(0.55, 0.75, h));
+          col *= 0.2 + 0.8 * ndl;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 96), mat);
+    scene.add(sphere);
+    scene.add(new THREE.AmbientLight(0x334466, 0.5));
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(3, 2, 4);
+    scene.add(light);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    let mode = 0, oct = 8;
+    el("mode").oninput = (e) => {
+      mode = +e.target.value;
+      uniforms.uMode.value = mode;
+      el("v-mode").textContent = mode < 0.5 ? "evaluate" : "baked";
+    };
+    el("oct").oninput = (e) => {
+      oct = +e.target.value;
+      uniforms.uOct.value = oct;
+      bakeMat.uniforms.uOct.value = Math.max(oct, 8);
+      el("v-oct").textContent = String(oct);
+    };
+    el("rebake").onclick = () => {
+      bakeMat.uniforms.uOct.value = 10;
+      const ms = bake();
+      el("hud").textContent = `baked in ${ms.toFixed(2)} ms · runtime cheap`;
+    };
+
+    // crude cost model for HUD
+    function estimateMs() {
+      if (mode < 0.5) return (0.15 * oct * oct * 0.08).toFixed(2);
+      return (0.12).toFixed(2);
+    }
+
+    const clock = new THREE.Clock();
+    (function frame() {
+      uniforms.uTime.value = clock.getElapsedTime();
+      sphere.rotation.y += 0.003;
+      controls.update();
+      el("hud").textContent = mode < 0.5
+        ? `evaluate · ~${estimateMs()} ms (model) · ${oct} octaves/pixel`
+        : `baked · ~${estimateMs()} ms (model) · last bake ${lastBakeMs.toFixed(2)} ms`;
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

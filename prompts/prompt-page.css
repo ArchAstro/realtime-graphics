@@ -1,0 +1,463 @@
+/* Shared layout for individual prompt detail pages */
+
+body.prompt-page {
+  overflow: auto;
+}
+
+.prompt-page .shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 4rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* —— Top chrome —— */
+.prompt-page .topnav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 12px;
+  color: var(--muted);
+}
+.prompt-page .topnav .crumbs a {
+  color: var(--accent);
+}
+.prompt-page .topnav .pager {
+  display: flex;
+  gap: 0.4rem;
+}
+.prompt-page .topnav .pager a {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(14, 18, 28, 0.7);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 11.5px;
+}
+.prompt-page .topnav .pager a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+}
+.prompt-page .topnav .pager a.is-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* —— Hero —— */
+.prompt-page .hero {
+  padding: 1.35rem 1.4rem 1.25rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(12, 16, 26, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.prompt-page .hero-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.55rem;
+}
+.prompt-page .hero-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.prompt-page .hero-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+}
+.prompt-page .hero h1 {
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  margin: 0 0 0.45rem;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--text);
+  text-shadow: none;
+}
+.prompt-page .hero-blurb {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 14.5px;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+.prompt-page .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.prompt-page .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(26, 32, 48, 0.85);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 550;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.prompt-page .btn:hover {
+  border-color: var(--accent);
+  text-decoration: none;
+}
+.prompt-page .btn.primary {
+  background: linear-gradient(135deg, #1a3a55, #163048);
+  border-color: #3a6a90;
+  color: #d7efff;
+}
+.prompt-page .btn.ghost {
+  background: transparent;
+}
+
+/* —— Layout: sticky TOC + main —— */
+.prompt-page .layout-prompt {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .prompt-page .layout-prompt {
+    grid-template-columns: 1fr;
+  }
+  .prompt-page .toc {
+    position: static !important;
+  }
+}
+
+.prompt-page .toc {
+  position: sticky;
+  top: 1rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(12, 16, 26, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.prompt-page .toc-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 0 0 0.55rem;
+}
+.prompt-page .toc nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.prompt-page .toc a {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  color: #c5cddd;
+  font-size: 12.5px;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.prompt-page .toc a:hover {
+  background: rgba(26, 32, 48, 0.8);
+  color: var(--accent);
+  text-decoration: none;
+}
+.prompt-page .toc a.is-active {
+  background: rgba(30, 48, 72, 0.85);
+  border-color: rgba(110, 200, 255, 0.25);
+  color: var(--accent);
+}
+
+.prompt-page .main-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* —— Cards / sections —— */
+.prompt-page .card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(12, 16, 26, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+.prompt-page .card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.05rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(20, 26, 38, 0.55);
+}
+.prompt-page .card-head h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  font-weight: 600;
+}
+.prompt-page .card-body {
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+/* Fact grid from meta table */
+.prompt-page .facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.55rem;
+}
+.prompt-page .fact {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(8, 12, 20, 0.45);
+}
+.prompt-page .fact-key {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+.prompt-page .fact-val {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.prompt-page .fact-val a {
+  color: var(--accent);
+  word-break: break-all;
+}
+.prompt-page .fact-val code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+}
+
+.prompt-page .why {
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border-left: 3px solid var(--accent-2);
+  background: rgba(255, 184, 107, 0.06);
+  border-radius: 0 10px 10px 0;
+  color: #d8c9a8;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.prompt-page .why strong {
+  color: var(--accent-2);
+}
+
+/* Document prose (overview extras, notes) */
+.prompt-page .doc {
+  color: #c5cddd;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.prompt-page .doc > :first-child { margin-top: 0; }
+.prompt-page .doc h1,
+.prompt-page .doc h2,
+.prompt-page .doc h3 {
+  color: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  margin: 1.15rem 0 0.4rem;
+}
+.prompt-page .doc h1 { font-size: 1.15rem; }
+.prompt-page .doc h2 { font-size: 1rem; color: var(--accent); }
+.prompt-page .doc h3 { font-size: 0.92rem; }
+.prompt-page .doc p { margin: 0.45rem 0; }
+.prompt-page .doc ul,
+.prompt-page .doc ol { padding-left: 1.2rem; margin: 0.4rem 0; }
+.prompt-page .doc li { margin: 0.2rem 0; }
+.prompt-page .doc blockquote {
+  margin: 0.6rem 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent-2);
+  background: rgba(255, 184, 107, 0.06);
+  color: #d8c9a8;
+  font-size: 13px;
+}
+.prompt-page .doc hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.1rem 0;
+}
+.prompt-page .doc pre.codeblock,
+.prompt-page .prompt-body pre {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: #0a0e16;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  overflow-x: auto;
+  color: #b8c7e0;
+  margin: 0.5rem 0 0.75rem;
+}
+.prompt-page .doc code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  padding: 0.08em 0.32em;
+}
+.prompt-page .doc pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+.prompt-page .table-wrap {
+  overflow-x: auto;
+  margin: 0.55rem 0 0.85rem;
+}
+.prompt-page .doc table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12.5px;
+}
+.prompt-page .doc th,
+.prompt-page .doc td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+}
+.prompt-page .doc th {
+  background: rgba(26, 32, 48, 0.9);
+  color: var(--accent);
+}
+
+/* Hide redundant meta tables inside overview when facts grid exists */
+.prompt-page .overview-doc .table-wrap:first-of-type {
+  display: none;
+}
+.prompt-page .overview-doc > h1:first-child {
+  display: none;
+}
+
+/* Prompt panel — the star of the page */
+.prompt-page .prompt-panel .card-body {
+  padding: 0;
+}
+.prompt-page .prompt-body {
+  padding: 1.1rem 1.15rem 1.25rem;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #c8d4e8;
+  max-height: min(70vh, 820px);
+  overflow: auto;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 20, 0.5), rgba(8, 12, 20, 0.35));
+}
+.prompt-page .prompt-body .doc,
+.prompt-page .prompt-body .doc p,
+.prompt-page .prompt-body .doc li {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: #c8d4e8;
+}
+.prompt-page .prompt-body .doc h1,
+.prompt-page .prompt-body .doc h2,
+.prompt-page .prompt-body .doc h3 {
+  font-family: var(--sans);
+  color: #e8edf7;
+}
+.prompt-page .prompt-body .doc h2 {
+  color: var(--accent);
+  border-bottom: 1px solid rgba(42, 51, 72, 0.8);
+  padding-bottom: 0.25rem;
+}
+.prompt-page .copy-status {
+  font-size: 11px;
+  color: var(--good);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.prompt-page .copy-status.show {
+  opacity: 1;
+}
+
+/* Technique related cards */
+.prompt-page .tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.55rem;
+}
+.prompt-page .tech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(8, 12, 20, 0.4);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.prompt-page .tech-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.prompt-page .tech-card .t-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.prompt-page .tech-card .t-why {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  flex: 1;
+}
+.prompt-page .tech-card .t-links {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 11.5px;
+  margin-top: 0.2rem;
+}
+.prompt-page .tech-card .t-links a {
+  color: var(--accent);
+}
+
+.prompt-page .footer-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+}

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Prompt archive — Realtime Graphics Prompts</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <style>
+    body { overflow: auto; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    h1 {
+      font-size: 1.55rem;
+      margin: 0 0 0.45rem;
+      letter-spacing: -0.02em;
+      text-shadow: 0 1px 18px rgba(0, 0, 0, 0.55);
+    }
+    .intro {
+      color: var(--muted);
+      max-width: 58ch;
+      margin: 0 0 1.5rem;
+      line-height: 1.55;
+    }
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 3rem 1fr;
+      gap: 0.85rem 1rem;
+      align-items: start;
+      padding: 1rem 1.1rem 1.05rem;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(12, 16, 26, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+      transition: border-color 0.15s, transform 0.15s, background 0.15s;
+    }
+    .row:hover {
+      border-color: rgba(110, 200, 255, 0.45);
+      background: rgba(18, 24, 38, 0.88);
+      transform: translateY(-1px);
+    }
+    .row .n {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      padding-top: 0.2rem;
+      letter-spacing: 0.04em;
+    }
+    .row .body { min-width: 0; }
+    .row h2 {
+      font-size: 1.05rem;
+      margin: 0 0 0.3rem;
+      text-transform: none;
+      letter-spacing: -0.01em;
+      color: var(--text);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .row h2 a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .row h2 a:hover { color: var(--accent); }
+    .row .blurb {
+      margin: 0 0 0.7rem;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .row .techs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .row .techs .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-right: 0.15rem;
+      width: 100%;
+      margin-bottom: 0.1rem;
+    }
+    .row .techs a {
+      display: inline-block;
+      font-size: 11.5px;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(26, 32, 48, 0.75);
+      color: var(--accent);
+      text-decoration: none;
+      line-height: 1.3;
+    }
+    .row .techs a:hover {
+      border-color: var(--accent);
+      background: rgba(30, 48, 72, 0.9);
+      text-decoration: none;
+    }
+    .row .techs .empty {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .nav {
+      margin-bottom: 1.1rem;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 1rem;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      background: rgba(12, 16, 24, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap site-content">
+    <div class="nav">
+      <a href="/">Home</a> ·
+      <a href="/techniques/">Techniques</a> ·
+      <a href="/techniques/demos/">Live demos</a> ·
+      Prompts
+    </div>
+    <h1>Prompt archive</h1>
+    <p class="intro">
+      Readable pages for each viral demo prompt — overview, full prompt text,
+      and links to the technique demos that teach the GPU ideas they use.
+    </p>
+    <div class="list" id="list"><div class="status">Loading prompts…</div></div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    fetch("/techniques/catalog.json")
+      .then((r) => {
+        if (!r.ok) throw new Error("catalog " + r.status);
+        return r.json();
+      })
+      .then((catalog) => {
+        const prompts = catalog.prompts || {};
+        const techniques = catalog.techniques || {};
+        const order = Object.keys(prompts).sort();
+        const list = document.getElementById("list");
+        list.innerHTML = "";
+
+        order.forEach((pid, i) => {
+          const p = prompts[pid];
+          const row = document.createElement("article");
+          row.className = "row";
+
+          const n = document.createElement("div");
+          n.className = "n";
+          n.textContent = String(i + 1).padStart(2, "0");
+
+          const body = document.createElement("div");
+          body.className = "body";
+
+          const h2 = document.createElement("h2");
+          const mainLink = document.createElement("a");
+          mainLink.href = `/prompts/${pid}/`;
+          mainLink.textContent = p.title;
+          h2.appendChild(mainLink);
+
+          const blurb = document.createElement("p");
+          blurb.className = "blurb";
+          blurb.textContent = p.blurb || "";
+
+          const techs = document.createElement("div");
+          techs.className = "techs";
+          const techIds = p.techniques || [];
+          if (techIds.length) {
+            const label = document.createElement("span");
+            label.className = "label";
+            label.textContent = "Techniques";
+            techs.appendChild(label);
+            techIds.forEach((tid) => {
+              const t = techniques[tid];
+              const a = document.createElement("a");
+              a.href = `/techniques/#${tid}`;
+              a.textContent = t ? t.title : tid;
+              techs.appendChild(a);
+            });
+          } else {
+            const empty = document.createElement("span");
+            empty.className = "empty";
+            empty.textContent = "No linked teaching demos yet";
+            techs.appendChild(empty);
+          }
+
+          body.appendChild(h2);
+          body.appendChild(blurb);
+          body.appendChild(techs);
+          row.appendChild(n);
+          row.appendChild(body);
+          list.appendChild(row);
+        });
+      })
+      .catch((err) => {
+        document.getElementById("list").innerHTML =
+          '<div class="status">Failed to load catalog.json — run <code>./scripts/serve.sh</code> from the repo root.</div>';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>

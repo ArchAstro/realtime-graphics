@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Desert explorer — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/01-snowflow-waterbending/">← SNOWFLOW waterbending</a>
+        <a href="/prompts/03-claude-of-duty/">Claude of Duty →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">02</span>
+        <span class="hero-id">02-desert-explorer</span>
+      </div>
+      <h1>Desert explorer</h1>
+      <p class="hero-blurb">Process notes + reconstructed seed</p>
+      <div class="hero-actions">
+        <a class="btn primary" href="https://desert-dusky.vercel.app/" target="_blank" rel="noopener">Open demo ↗</a>
+<a class="btn" href="https://www.reddit.com/r/ClaudeAI/comments/1v7h5e3/i_built_a_procedural_desert_explorer_with_claude/" target="_blank" rel="noopener">Reddit ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#notes">Notes</a>
+<a href="#techniques">Techniques</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Same author as SNOWFLOW; the viral desert demo that preceded the snow/waterbending work. GPU clipmap dunes, permanent sand deformation, cloth robe, six sand spells, physically based sky. Direct lineage for the snow brief.</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Author</span><div class="fact-val"><code>u/Any-Reputation8118</code> / Noniv</div></div><div class="fact"><span class="fact-key">Model</span><div class="fact-val">Claude Code + Opus 5</div></div><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">WebGPU, Three.js, TSL shaders, compute kernels</div></div><div class="fact"><span class="fact-key">Effort</span><div class="fact-val">~14 hours, ~5M tokens (per OP comments)</div></div><div class="fact"><span class="fact-key">Demo</span><div class="fact-val"><a href="https://desert-dusky.vercel.app/" target="_blank" rel="noopener">https://desert-dusky.vercel.app/</a></div></div><div class="fact"><span class="fact-key">Reddit</span><div class="fact-val"><a href="https://www.reddit.com/r/ClaudeAI/comments/1v7h5e3/i_built_a_procedural_desert_explorer_with_claude/" target="_blank" rel="noopener">https://www.reddit.com/r/ClaudeAI/comments/1v7h5e3/i_built_a_procedural_desert_explorer_with_claude/</a></div></div><div class="fact"><span class="fact-key">Perf</span><div class="fact-val">~160 FPS @ 1440p on RTX 5070 Ti</div></div></div>
+            <div class="doc overview-doc" style="margin-top:1rem"><h2 id="controls">Controls</h2>
+<p>WASD · 1–5 + RMB cast · F3 perf · F1 settings</p>
+<h2 id="prompt-status">Prompt status</h2>
+<p><strong>Author did not save the original prompt</strong> (stated in comments: &quot;Sadly I did not save it… original prompt was like 20% of the result, then I was working with Claude incrementally&quot;).</p>
+<p>See <a href="./notes.md" target="_blank" rel="noopener"><code>notes.md</code></a> for process reconstruction and a <strong>prompt seed</strong> inferred from OP&#x27;s public description + the later SNOWFLOW brief (which <em>is</em> fully preserved).</p>
+<h2 id="workflow-that-mattered">Workflow that mattered</h2>
+<blockquote>&quot;giving Claude its own instruments: a headless-Chrome harness that boots the app, screenshots it and reports per-subsystem GPU cost, so changes were made against measured numbers.&quot;</blockquote></div>
+          </div>
+        </section>
+
+        
+        
+        <section class="card" id="notes">
+          <div class="card-head"><h2>Notes</h2></div>
+          <div class="card-body">
+            <div class="doc"><h1 id="desert-explorer-process-notes-reconstructed-seed">Desert explorer — process notes + reconstructed seed</h1>
+<h2 id="what-op-publicly-described">What OP publicly described</h2>
+<blockquote>a browser desert you walk around in third person. The terrain is a procedural dune field on a GPU clipmap — no meshes, no textures, no downloaded assets; every surface is generated in shader code. Sand deforms permanently where you walk and slowly erodes back. There&#x27;s a hooded robe simulated as GPU cloth, a physically-based sky marched per pixel, and six aimed sand spells (1–5 and right mouse) that dig real craters into the terrain and raise real dunes you can ride.</blockquote>
+<h2 id="reconstructed-seed-not-original-for-experimentation">Reconstructed seed (NOT original — for experimentation)</h2>
+<p>Use this as a starting point, then iterate with screenshot + GPU-cost feedback like OP did. Prefer the full SNOWFLOW brief in <code>../01-snowflow-waterbending/prompt.md</code> for the mature version of the same design language.</p>
+<pre class="codeblock"><code>You are the sole engineer and technical artist on a real-time graphics tech demo.
+Build a third-person desert sand-mage tech demo end to end.
+
+PRIME DIRECTIVE: Visual quality is the product. No gameplay loop, no progression UI.
+A player walks dunes for 90 seconds, casts sand spells, and either thinks &quot;this is AAA&quot; or closes the tab.
+
+STACK: Modern JS (ES modules), Three.js latest with WebGPURenderer + TSL, Vite.
+TARGET: Chrome desktop, discrete GPU, 1440p, 90 FPS sustained / 60 FPS floor.
+NO WebGL fallback. If navigator.gpu is missing, show one line and stop.
+NO downloaded meshes/textures/HDRIs if procedural can win. Everything in shader code where possible.
+
+SYSTEMS (must ship):
+1. Geometry clipmap dune field, wind-anisotropic layered noise height, far ridge impostors.
+2. Custom sand material: multi-scale normals, sparkle, wet/compressed states, triplanar on steep faces.
+3. Persistent player-following deformation render target (depression + berm mass + compression). Feet, surf, and spells all write the same buffer. Trails refill slowly and self-shadow.
+4. Physically based sky (per-pixel march or high-quality analytic) with long low sun and soft cascaded shadows (PCSS).
+5. Procedural hooded-robe character, GPU cloth on hem/sleeves, foot planting IK, footfall spray.
+6. Six aimed sand abilities (keys 1–5 + RMB) that dig real craters / raise rideable dunes — displacement is geometry, not decals.
+7. Post: TAA, restrained bloom, tonemap (AgX/ACES), grain. Every effect toggleable from F1 overlay with frame-time graph + 1% lows.
+
+PERFORMANCE: Zero allocations in the render loop. Prewarm every pipeline before the loading screen dismisses. Instrument with a headless Chrome harness that screenshots and reports per-subsystem GPU cost.
+
+MILESTONES (hard gates — screenshot each, do not proceed if ugly):
+Foundation → Terrain+sand look → Deformation → Character/cloth → Spells → Polish+perf.
+
+Do not stop when it works. Stop when every captured frame looks polished and cohesive.</code></pre>
+<h2 id="follow-up-loop-op-used">Follow-up loop OP used</h2>
+<ol>
+<li>1. Build milestone</li>
+<li>2. Human playtests + Claude screenshots</li>
+<li>3. Feed bugs / &quot;looks wrong&quot; / GPU ms back into next prompt</li>
+<li>4. Character model was weak → redesigned as fully robed so cloth hides cheap geometry</li>
+</ol></div>
+          </div>
+        </section>
+        
+        <section class="card" id="techniques">
+          <div class="card-head"><h2>Related techniques</h2></div>
+          <div class="card-body">
+            <div class="tech-grid">
+            <div class="tech-card">
+              <div class="t-title">Geometry clipmap terrain</div>
+              <div class="t-why">Infinite ground at high near density, one draw</div>
+              <div class="t-links">
+                <a href="/techniques/#01-geometry-clipmap">Notes</a>
+                <a href="/techniques/demos/01-geometry-clipmap.html">Live demo</a>
+              </div>
+            </div>
+            <div class="tech-card">
+              <div class="t-title">Layered wind-anisotropic noise</div>
+              <div class="t-why">Dunes that look carved by weather, not isotropic fBm</div>
+              <div class="t-links">
+                <a href="/techniques/#02-layered-wind-noise">Notes</a>
+                <a href="/techniques/demos/02-layered-wind-noise.html">Live demo</a>
+              </div>
+            </div>
+            <div class="tech-card">
+              <div class="t-title">Persistent deformation buffer</div>
+              <div class="t-why">Footprints/spells with berms that self-shadow</div>
+              <div class="t-links">
+                <a href="/techniques/#03-deformation-buffer">Notes</a>
+                <a href="/techniques/demos/03-deformation-buffer.html">Live demo</a>
+              </div>
+            </div></div>
+          </div>
+        </section>
+
+        <div class="footer-nav pager">
+          <a href="/prompts/01-snowflow-waterbending/">← SNOWFLOW waterbending</a>
+          <a href="/prompts/03-claude-of-duty/">Claude of Duty →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>

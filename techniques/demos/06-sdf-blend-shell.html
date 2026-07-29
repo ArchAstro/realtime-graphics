@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>06 · SDF blend-shell</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 06 / 12</div>
+        <h1>SDF blend-shell</h1>
+        <p class="lede">Primitive meshes snapped onto a smooth-min SDF surface so overlaps become one seamless body — mesh cost, SDF look.</p>
+        <div class="tagrow">
+          <span class="tag ref">Fable creatures</span>
+          <span class="tag stack">vertex SDF</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <ol style="padding-left:1.15rem;color:#c5cddd;font-size:13px">
+        <li>Author body as capsules/spheres (ordinary meshes).</li>
+        <li>In the VS, evaluate <code>smoothMin</code> of all primitive SDFs at the vertex.</li>
+        <li>Project the vertex onto the blended surface (along gradient).</li>
+        <li>Normals from the SDF gradient → continuous lighting across joints.</li>
+      </ol>
+      <pre class="codeblock">float d = smin(d1, d2, k);
+// Newton-ish project onto d=0
+p -= normalize(grad) * d;</pre>
+      <p>Still one (or few) mesh draws — no per-pixel raymarch. Mobile-friendly.</p>
+
+      <h2>Prompt match</h2>
+      <p>“Ragdoll-like characters composed of primitives that look like one seamless body via a custom mobile-performant tech-art/shader solution.”</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Blend smoothness k</label><span class="val" id="v-k">0.35</span>
+          <input id="k" type="range" min="0.02" max="0.8" step="0.01" value="0.35" />
+        </div>
+        <div class="control">
+          <label>Separate primitives</label><span class="val" id="v-sep">0.0</span>
+          <input id="sep" type="range" min="0" max="1" step="0.01" value="0" />
+        </div>
+        <div class="control checkbox">
+          <input id="showPrim" type="checkbox" />
+          <label>Show raw capsules (no snap)</label>
+        </div>
+        <div class="control checkbox">
+          <input id="wire" type="checkbox" />
+          <label>Wireframe</label>
+        </div>
+      </div>
+      <div class="note"><strong>Crank k down</strong> — hard union with a crease. <strong>k up</strong> — blobby organic meld. Separation shows the input primitives.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/06-sdf-blend-shell-creatures/">SDF blend-shell creatures</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#06-sdf-blend-shell">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./05-wrap-sss.html">← Wrap SSS</a>
+        <a href="./07-floating-origin.html">Next: floating origin →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span>drag to orbit</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101018);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.set(2.8, 1.8, 4.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.9, 0);
+
+    scene.add(new THREE.AmbientLight(0x666688, 0.55));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+    sun.position.set(3, 5, 2);
+    scene.add(sun);
+    scene.add(new THREE.HemisphereLight(0x8899ff, 0x332211, 0.4));
+
+    // Build a creature from capsule-like sphere meshes (dense enough to snap)
+    function capsuleGeo(r, h, segs = 12) {
+      // approximate with stretched sphere for teaching
+      const g = new THREE.SphereGeometry(r, segs, segs);
+      g.scale(1, h / (2 * r), 1);
+      return g;
+    }
+
+    function part(geo, x, y, z) {
+      const g = geo.clone();
+      g.translate(x, y, z);
+      return g;
+    }
+
+    const body = part(capsuleGeo(0.45, 1.1, 20), 0, 1.0, 0);
+    const head = part(new THREE.SphereGeometry(0.32, 18, 18), 0, 1.75, 0.05);
+    const armL = part(capsuleGeo(0.14, 0.7, 12), -0.55, 1.15, 0);
+    const armR = part(capsuleGeo(0.14, 0.7, 12), 0.55, 1.15, 0);
+    const legL = part(capsuleGeo(0.16, 0.85, 12), -0.22, 0.35, 0);
+    const legR = part(capsuleGeo(0.16, 0.85, 12), 0.22, 0.35, 0);
+    const earL = part(new THREE.SphereGeometry(0.12, 10, 10), -0.22, 2.05, 0);
+    const earR = part(new THREE.SphereGeometry(0.12, 10, 10), 0.22, 2.05, 0);
+
+    // pack primitive centers/radii for the shader (simplified as spheres)
+    // body, head, arms, legs, ears
+    const prims = [
+      [0, 1.0, 0, 0.48],
+      [0, 1.75, 0.05, 0.34],
+      [-0.55, 1.15, 0, 0.22],
+      [0.55, 1.15, 0, 0.22],
+      [-0.22, 0.35, 0, 0.28],
+      [0.22, 0.35, 0, 0.28],
+      [-0.22, 2.05, 0, 0.14],
+      [0.22, 2.05, 0, 0.14],
+    ];
+
+    const merged = mergeGeometries([body, head, armL, armR, legL, legR, earL, earR]);
+    const uniforms = {
+      uK: { value: 0.35 },
+      uSep: { value: 0 },
+      uSnap: { value: 1 },
+      uPrims: { value: prims.flat() },
+    };
+
+    // Three doesn't pass float arrays easily without DataTexture — pack into matrix / use define
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uK: uniforms.uK,
+        uSep: uniforms.uSep,
+        uSnap: uniforms.uSnap,
+        // 8 vec4
+        p0: { value: new THREE.Vector4(...prims[0]) },
+        p1: { value: new THREE.Vector4(...prims[1]) },
+        p2: { value: new THREE.Vector4(...prims[2]) },
+        p3: { value: new THREE.Vector4(...prims[3]) },
+        p4: { value: new THREE.Vector4(...prims[4]) },
+        p5: { value: new THREE.Vector4(...prims[5]) },
+        p6: { value: new THREE.Vector4(...prims[6]) },
+        p7: { value: new THREE.Vector4(...prims[7]) },
+      },
+      wireframe: false,
+      vertexShader: /* glsl */`
+        uniform float uK, uSep, uSnap;
+        uniform vec4 p0,p1,p2,p3,p4,p5,p6,p7;
+        varying vec3 vN;
+        varying vec3 vW;
+        varying float vBlend;
+
+        float sdSphere(vec3 p, vec3 c, float r){ return length(p-c)-r; }
+        float smin(float a, float b, float k){
+          float h = clamp(0.5 + 0.5*(b-a)/k, 0., 1.);
+          return mix(b, a, h) - k*h*(1.-h);
+        }
+        float map(vec3 p){
+          // separation pulls primitives apart for teaching
+          vec3 off = vec3(uSep * 0.55, 0., 0.);
+          float d = sdSphere(p, p0.xyz, p0.w);
+          d = smin(d, sdSphere(p, p1.xyz + vec3(0.,uSep*0.2,0.), p1.w), uK);
+          d = smin(d, sdSphere(p, p2.xyz - off, p2.w), uK);
+          d = smin(d, sdSphere(p, p3.xyz + off, p3.w), uK);
+          d = smin(d, sdSphere(p, p4.xyz - off*0.4 + vec3(0.,-uSep*0.15,0.), p4.w), uK);
+          d = smin(d, sdSphere(p, p5.xyz + off*0.4 + vec3(0.,-uSep*0.15,0.), p5.w), uK);
+          d = smin(d, sdSphere(p, p6.xyz - off*0.35 + vec3(0.,uSep*0.25,0.), p6.w), uK);
+          d = smin(d, sdSphere(p, p7.xyz + off*0.35 + vec3(0.,uSep*0.25,0.), p7.w), uK);
+          return d;
+        }
+        vec3 calcNormal(vec3 p){
+          float e = 0.002;
+          return normalize(vec3(
+            map(p+vec3(e,0,0))-map(p-vec3(e,0,0)),
+            map(p+vec3(0,e,0))-map(p-vec3(0,e,0)),
+            map(p+vec3(0,0,e))-map(p-vec3(0,0,e))
+          ));
+        }
+        void main(){
+          vec3 p = position;
+          float d = map(p);
+          vBlend = d;
+          if (uSnap > 0.5) {
+            // project onto surface (a few iterations)
+            for (int i = 0; i < 3; i++) {
+              float di = map(p);
+              vec3 g = calcNormal(p);
+              p -= g * di;
+            }
+          }
+          vN = calcNormal(p);
+          vec4 w = modelMatrix * vec4(p, 1.0);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }
+      `,
+      fragmentShader: /* glsl */`
+        varying vec3 vN;
+        varying vec3 vW;
+        varying float vBlend;
+        void main(){
+          vec3 N = normalize(vN);
+          vec3 L = normalize(vec3(0.5, 0.8, 0.3));
+          vec3 V = normalize(cameraPosition - vW);
+          float ndl = clamp(dot(N,L), 0., 1.);
+          // toon-ish ramp like the creature demos
+          float ramp = smoothstep(0.05, 0.15, ndl) * 0.55 + smoothstep(0.45, 0.55, ndl) * 0.45;
+          vec3 base = mix(vec3(0.95, 0.55, 0.35), vec3(1.0, 0.85, 0.55), clamp(vW.y * 0.35, 0., 1.));
+          vec3 col = base * (0.25 + 0.75 * ramp);
+          // rim
+          float rim = pow(1.0 - max(dot(N,V),0.), 3.0);
+          col += rim * 0.15 * vec3(1.0, 0.9, 0.7);
+          // specular
+          vec3 H = normalize(L+V);
+          col += pow(clamp(dot(N,H),0.,1.), 40.0) * 0.2;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+
+    const mesh = new THREE.Mesh(merged, mat);
+    scene.add(mesh);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(4, 40),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a24, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    el("k").oninput = (e) => { mat.uniforms.uK.value = +e.target.value; el("v-k").textContent = (+e.target.value).toFixed(2); };
+    el("sep").oninput = (e) => { mat.uniforms.uSep.value = +e.target.value; el("v-sep").textContent = (+e.target.value).toFixed(2); };
+    el("showPrim").onchange = (e) => { mat.uniforms.uSnap.value = e.target.checked ? 0 : 1; };
+    el("wire").onchange = (e) => { mat.wireframe = e.target.checked; };
+
+    (function frame() {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

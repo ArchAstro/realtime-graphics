@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bustling 3D city — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/06-sdf-blend-shell-creatures/">← SDF blend-shell creatures</a>
+        <a href="/prompts/08-cod-zombies-clone/">COD Zombies clone →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">07</span>
+        <span class="hero-id">07-bustling-3d-city</span>
+      </div>
+      <h1>Bustling 3D city</h1>
+      <p class="hero-blurb">One-shot city scene</p>
+      <div class="hero-actions">
+        <a class="btn" href="https://www.reddit.com/r/ClaudeAI/comments/1p87y44/claude_opus_45_builds_a_3d_city_with_one_shot/" target="_blank" rel="noopener">Reddit ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#prompt">Prompt</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Clean, complete one-shot city scene prompt that produced traffic, pedestrians, day/night, and free camera — a reusable &quot;environment density&quot; template.</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Model</span><div class="fact-val">Claude Opus 4.5</div></div><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">Three.js</div></div><div class="fact"><span class="fact-key">Reddit</span><div class="fact-val"><a href="https://www.reddit.com/r/ClaudeAI/comments/1p87y44/claude_opus_45_builds_a_3d_city_with_one_shot/" target="_blank" rel="noopener">https://www.reddit.com/r/ClaudeAI/comments/1p87y44/claude_opus_45_builds_a_3d_city_with_one_shot/</a></div></div></div>
+            
+          </div>
+        </section>
+
+        
+        <section class="card prompt-panel" id="prompt">
+          <div class="card-head">
+            <h2>Prompt</h2>
+            
+              <div style="display:flex;align-items:center;gap:0.65rem">
+                <span class="copy-status" id="copy-status"></span>
+                <button type="button" class="btn ghost" id="copy-prompt">Copy prompt</button>
+              </div>
+          </div>
+          <div class="card-body">
+            <div class="prompt-body" id="prompt-source" data-raw="# Bustling 3D city — one-shot prompt
+
+Source: Reddit r/ClaudeAI — *Claude Opus 4.5 builds a 3D city with one shot*
+
+```
+Create a 3D city scene using Three.js that features a bustling urban environment with skyscrapers, apartment buildings, and smaller shops lining the streets. Incorporate roads with moving cars, traffic lights, and pedestrian crossings to bring the city to life. Add pedestrians walking on sidewalks and crossing the streets to enhance realism. Include street elements such as lampposts, benches, and trees for a more immersive experience. Utilize dynamic lighting to simulate day and night cycles, and implement basic camera controls to allow users to explore the vibrant cityscape from different perspectives.
+```
+">
+              <div class="doc"><h1 id="bustling-3d-city-one-shot-prompt">Bustling 3D city — one-shot prompt</h1>
+<p>Source: Reddit r/ClaudeAI — <em>Claude Opus 4.5 builds a 3D city with one shot</em></p>
+<pre class="codeblock"><code>Create a 3D city scene using Three.js that features a bustling urban environment with skyscrapers, apartment buildings, and smaller shops lining the streets. Incorporate roads with moving cars, traffic lights, and pedestrian crossings to bring the city to life. Add pedestrians walking on sidewalks and crossing the streets to enhance realism. Include street elements such as lampposts, benches, and trees for a more immersive experience. Utilize dynamic lighting to simulate day and night cycles, and implement basic camera controls to allow users to explore the vibrant cityscape from different perspectives.</code></pre></div>
+            </div>
+          </div>
+        </section>
+        
+        
+
+        <div class="footer-nav pager">
+          <a href="/prompts/06-sdf-blend-shell-creatures/">← SDF blend-shell creatures</a>
+          <a href="/prompts/08-cod-zombies-clone/">COD Zombies clone →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>

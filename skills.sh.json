@@ -1,0 +1,11 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Realtime graphics",
+      "description": "One-shot prompts and practices for browser games and GPU tech demos.",
+      "skills": ["realtime-graphics-prompt"]
+    }
+  ]
+}

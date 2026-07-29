@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>10 · Post stack</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 10 / 12</div>
+        <h1>Post stack + tonemap</h1>
+        <p class="lede">Bloom, vignette, grain, and highlight roll-off. Toggle pieces — notice how easy it is to clip snow to pure white.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW · CoD · Long Silence</span>
+          <span class="tag stack">HDR → LDR</span>
+        </div>
+      </header>
+
+      <h2>Typical order</h2>
+      <pre class="codeblock">beauty (HDR)
+→ bloom (threshold in exposed units)
+→ tonemap (ACES / AgX)
+→ grain + vignette
+→ sharpen / FXAA</pre>
+      <p>TAA (not in this simple demo) stabilizes glints and thin geo. Measure 1% lows, not only avg FPS.</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control checkbox"><input id="bloom" type="checkbox" checked /><label>Bloom</label></div>
+        <div class="control">
+          <label>Bloom threshold</label><span class="val" id="v-th">0.7</span>
+          <input id="th" type="range" min="0.2" max="1.5" step="0.01" value="0.7" />
+        </div>
+        <div class="control">
+          <label>Exposure</label><span class="val" id="v-exp">1.0</span>
+          <input id="exp" type="range" min="0.3" max="2.5" step="0.01" value="1" />
+        </div>
+        <div class="control checkbox"><input id="aces" type="checkbox" checked /><label>ACES-ish tonemap</label></div>
+        <div class="control checkbox"><input id="grain" type="checkbox" checked /><label>Film grain</label></div>
+        <div class="control checkbox"><input id="vig" type="checkbox" checked /><label>Vignette</label></div>
+      </div>
+      <div class="note"><strong>Push exposure up</strong> with tonemap off — highlights hard-clip. Tonemap is what keeps snow readable.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> · <a href="/prompts/03-claude-of-duty/">Claude of Duty</a> · <a href="/prompts/04-the-long-silence/">The Long Silence</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#10-post-stack">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./09-atmosphere-sky.html">← Sky</a>
+        <a href="./11-swept-mesh.html">Next: swept mesh →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">post</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+    import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+    import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+    import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.NoToneMapping; // we do it in pass
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a1520);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(4, 3, 7);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.8, 0);
+
+    scene.add(new THREE.AmbientLight(0x334455, 0.4));
+    const sun = new THREE.DirectionalLight(0xffe0b0, 2.5);
+    sun.position.set(5, 8, 2);
+    scene.add(sun);
+
+    // bright snowy ground + emissive “sun sparkles”
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 20, 64, 64),
+      new THREE.MeshStandardMaterial({ color: 0xdde8f0, roughness: 0.95, metalness: 0.0 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    // displace
+    const pos = ground.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setY(i, Math.sin(pos.getX(i)*0.5)*0.15 + Math.cos(pos.getZ(i)*0.4)*0.1);
+    }
+    ground.geometry.computeVertexNormals();
+    scene.add(ground);
+
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(0.8, 32, 32),
+      new THREE.MeshStandardMaterial({ color: 0xeef4ff, roughness: 0.4, metalness: 0.1 })
+    );
+    ball.position.set(0, 0.9, 0);
+    scene.add(ball);
+
+    // hot emissive orbs to bloom
+    for (let i = 0; i < 5; i++) {
+      const o = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 12, 12),
+        new THREE.MeshBasicMaterial({ color: 0xfff2c8 })
+      );
+      o.position.set(Math.cos(i)*2.2, 0.4 + (i%2)*0.5, Math.sin(i)*2.2);
+      scene.add(o);
+    }
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.7, 0.4, 0.7);
+    composer.addPass(bloomPass);
+
+    const FinalShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uExposure: { value: 1 },
+        uAces: { value: 1 },
+        uGrain: { value: 1 },
+        uVig: { value: 1 },
+        uTime: { value: 0 },
+      },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+      fragmentShader: /* glsl */`
+        varying vec2 vUv;
+        uniform sampler2D tDiffuse;
+        uniform float uExposure, uAces, uGrain, uVig, uTime;
+        // approx ACES fitted
+        vec3 aces(vec3 x){
+          const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14;
+          return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0., 1.);
+        }
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+        void main(){
+          vec3 col = texture2D(tDiffuse, vUv).rgb * uExposure;
+          if (uAces > 0.5) col = aces(col);
+          else col = clamp(col, 0., 1.); // hard clip path
+          // sRGB-ish
+          col = pow(col, vec3(1.0/2.2));
+          if (uGrain > 0.5) {
+            float g = hash(vUv * vec2(1920.,1080.) + uTime) - 0.5;
+            col += g * 0.04;
+          }
+          if (uVig > 0.5) {
+            float d = distance(vUv, vec2(0.5));
+            col *= smoothstep(0.95, 0.35, d);
+          }
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    };
+    const finalPass = new ShaderPass(FinalShader);
+    composer.addPass(finalPass);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      composer.setSize(w, h);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+      bloomPass.resolution.set(w, h);
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    el("bloom").onchange = (e) => { bloomPass.enabled = e.target.checked; };
+    el("th").oninput = (e) => {
+      bloomPass.threshold = +e.target.value;
+      el("v-th").textContent = (+e.target.value).toFixed(2);
+    };
+    el("exp").oninput = (e) => {
+      finalPass.uniforms.uExposure.value = +e.target.value;
+      el("v-exp").textContent = (+e.target.value).toFixed(2);
+    };
+    el("aces").onchange = (e) => { finalPass.uniforms.uAces.value = e.target.checked ? 1 : 0; };
+    el("grain").onchange = (e) => { finalPass.uniforms.uGrain.value = e.target.checked ? 1 : 0; };
+    el("vig").onchange = (e) => { finalPass.uniforms.uVig.value = e.target.checked ? 1 : 0; };
+
+    const clock = new THREE.Clock();
+    (function frame() {
+      finalPass.uniforms.uTime.value = clock.getElapsedTime();
+      controls.update();
+      composer.render();
+      const clip = finalPass.uniforms.uAces.value < 0.5 && finalPass.uniforms.uExposure.value > 1.2;
+      el("hud").textContent = clip ? "highlights hard-clipping" : "tonemap protecting highs";
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

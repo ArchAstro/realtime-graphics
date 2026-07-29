@@ -1,0 +1,13 @@
+{
+  "name": "realtime-graphics-prompts",
+  "private": true,
+  "description": "AI realtime graphics prompts + interactive technique demos + installable agent skill",
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "start": "npm run dev",
+    "build": "python3 scripts/build-prompt-pages.py",
+    "skills:list": "npx --yes skills add . --list",
+    "skills:install": "npx --yes skills add . --skill realtime-graphics-prompt -y",
+    "skills:install:global": "npx --yes skills add . --skill realtime-graphics-prompt -g -y"
+  }
+}

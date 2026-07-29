@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>12 · Procedural PBR forge</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 12 / 12</div>
+        <h1>Procedural PBR texture forge</h1>
+        <p class="lede">Zero art files: noise → albedo / roughness / height → normals. Same idea as Claude of Duty’s material forge and Solebound’s leather.</p>
+        <div class="tagrow">
+          <span class="tag ref">Claude of Duty · Solebound</span>
+          <span class="tag stack">noise → maps</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <pre class="codeblock">height = fbm(uv * scale)
+albedo = palette(height, dirt, wear)
+rough  = mix(0.9, 0.3, height)
+normal = sobel(height)  // or analytic ∂h</pre>
+      <ul>
+        <li>Use <strong>periodic</strong> noise if you need seamless tiles</li>
+        <li>Triplanar for steep / world-space surfaces</li>
+        <li>Curvature / height edges → wear and edge darkening</li>
+      </ul>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Material preset</label><span class="val" id="v-preset">concrete</span>
+          <input id="preset" type="range" min="0" max="3" step="1" value="0" />
+        </div>
+        <div class="control">
+          <label>Scale</label><span class="val" id="v-sc">3.0</span>
+          <input id="sc" type="range" min="0.5" max="10" step="0.1" value="3" />
+        </div>
+        <div class="control">
+          <label>Wear / edge</label><span class="val" id="v-wear">0.5</span>
+          <input id="wear" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div class="control checkbox">
+          <input id="maps" type="checkbox" />
+          <label>Show generated maps strip</label>
+        </div>
+      </div>
+      <div class="note">Presets: 0 concrete · 1 rusted metal · 2 wood · 3 snow crust — all from the same noise graph with different palettes.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/03-claude-of-duty/">Claude of Duty</a> · <a href="/prompts/05-solebound-shoe-repair/">SOLEBOUND</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#12-procedural-pbr">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./11-swept-mesh.html">← Swept mesh</a>
+        <a href="./index.html">All demos →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">procedural PBR</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x12141c);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.set(2.2, 1.4, 3.2);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.2, 0);
+
+    scene.add(new THREE.AmbientLight(0x445566, 0.45));
+    const sun = new THREE.DirectionalLight(0xfff0dd, 1.4);
+    sun.position.set(4, 6, 2);
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0x6688ff, 0.35);
+    fill.position.set(-3, 2, -2);
+    scene.add(fill);
+
+    const uniforms = {
+      uPreset: { value: 0 },
+      uScale: { value: 3 },
+      uWear: { value: 0.5 },
+      uShowMaps: { value: 0 },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+        void main(){
+          vUv = uv;
+          vN = normalize(normalMatrix * normal);
+          vec4 w = modelMatrix * vec4(position,1.);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: /* glsl */`
+        varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+        uniform float uPreset, uScale, uWear, uShowMaps;
+
+        float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+        float noise(vec2 p){
+          vec2 i=floor(p), f=fract(p);
+          float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));
+          vec2 u=f*f*(3.-2.*f);
+          return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+        }
+        float fbm(vec2 p){
+          float s=0.,a=.5;
+          for(int i=0;i<6;i++){ s+=a*noise(p); p=p*2.05+vec2(11.3,7.1); a*=.5; }
+          return s;
+        }
+        // periodic-ish by using large domain; teaching simplification
+        float height(vec2 uv){
+          vec2 p = uv * uScale;
+          float h = fbm(p);
+          h += 0.35 * fbm(p * 2.7 + 3.1);
+          // cracks for concrete
+          if (uPreset < 0.5) {
+            float c = abs(noise(p*1.3) - 0.5);
+            h -= smoothstep(0.04, 0.0, c) * 0.25;
+          }
+          // grain for wood
+          if (uPreset > 1.5 && uPreset < 2.5) {
+            h = fbm(vec2(p.x * 0.4, p.y * 3.5));
+          }
+          return h;
+        }
+
+        void main(){
+          vec2 uv = vUv;
+          float e = 0.002;
+          float h = height(uv);
+          float hx = height(uv+vec2(e,0)) - height(uv-vec2(e,0));
+          float hy = height(uv+vec2(0,e)) - height(uv-vec2(0,e));
+          vec3 nTex = normalize(vec3(-hx * 8.0, -hy * 8.0, 1.0));
+
+          // edge wear from height gradient magnitude
+          float edge = clamp(length(vec2(hx,hy)) * 40.0, 0., 1.) * uWear;
+
+          vec3 albedo;
+          float rough;
+          float metal = 0.0;
+          if (uPreset < 0.5) {
+            albedo = mix(vec3(0.45,0.45,0.42), vec3(0.62,0.6,0.55), h);
+            albedo = mix(albedo, vec3(0.35,0.34,0.32), edge);
+            rough = mix(0.92, 0.7, h) - edge * 0.1;
+          } else if (uPreset < 1.5) {
+            albedo = mix(vec3(0.35,0.18,0.1), vec3(0.55,0.55,0.52), h);
+            albedo = mix(albedo, vec3(0.7,0.35,0.12), edge);
+            rough = mix(0.7, 0.35, h);
+            metal = mix(0.6, 0.2, edge);
+          } else if (uPreset < 2.5) {
+            albedo = mix(vec3(0.35,0.22,0.1), vec3(0.55,0.38,0.18), h);
+            albedo *= 0.85 + 0.15 * noise(uv * uScale * 20.0);
+            rough = 0.75;
+          } else {
+            albedo = mix(vec3(0.7,0.78,0.85), vec3(0.92,0.95,0.98), h);
+            rough = mix(0.85, 0.55, h);
+          }
+
+          if (uShowMaps > 0.5) {
+            // strip: left height, mid normal, right roughness
+            if (uv.x < 0.33) {
+              gl_FragColor = vec4(vec3(h), 1.0);
+              return;
+            } else if (uv.x < 0.66) {
+              gl_FragColor = vec4(nTex * 0.5 + 0.5, 1.0);
+              return;
+            } else {
+              gl_FragColor = vec4(vec3(rough), 1.0);
+              return;
+            }
+          }
+
+          // simple GGX-ish lighting
+          vec3 N = normalize(vN);
+          // perturb in tangent-free way
+          N = normalize(N + mat3(1.) * (nTex - vec3(0,0,1)) * 0.5);
+          vec3 V = normalize(cameraPosition - vW);
+          vec3 L = normalize(vec3(0.5, 0.8, 0.3));
+          vec3 H = normalize(V + L);
+          float ndl = max(dot(N,L), 0.0);
+          float ndh = max(dot(N,H), 0.0);
+          float ndv = max(dot(N,V), 0.0);
+          float a = max(rough * rough, 0.02);
+          float a2 = a*a;
+          float d = a2 / (3.14159 * pow(ndh*ndh*(a2-1.)+1., 2.0));
+          float k = (rough+1.)*(rough+1.)/8.;
+          float g = (ndv/(ndv*(1.-k)+k)) * (ndl/(ndl*(1.-k)+k));
+          vec3 F0 = mix(vec3(0.04), albedo, metal);
+          vec3 F = F0 + (1.-F0)*pow(1.-max(dot(H,V),0.),5.);
+          vec3 spec = d * g * F / max(4. * ndv * ndl, 0.001);
+          vec3 diff = albedo * (1. - metal) / 3.14159;
+          vec3 col = (diff + spec) * ndl * vec3(1.0,0.95,0.9) * 2.2;
+          col += albedo * 0.12 * (0.5 + 0.5 * N.y);
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64), mat);
+    scene.add(mesh);
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3, 48),
+      new THREE.MeshStandardMaterial({ color: 0x1a1c24, roughness: 1 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.05;
+    scene.add(floor);
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const names = ["concrete", "rusted metal", "wood", "snow crust"];
+    const el = (id) => document.getElementById(id);
+    el("preset").oninput = (e) => {
+      uniforms.uPreset.value = +e.target.value;
+      el("v-preset").textContent = names[+e.target.value];
+      el("hud").textContent = names[+e.target.value];
+    };
+    el("sc").oninput = (e) => { uniforms.uScale.value = +e.target.value; el("v-sc").textContent = (+e.target.value).toFixed(1); };
+    el("wear").oninput = (e) => { uniforms.uWear.value = +e.target.value; el("v-wear").textContent = (+e.target.value).toFixed(2); };
+    el("maps").onchange = (e) => { uniforms.uShowMaps.value = e.target.checked ? 1 : 0; };
+
+    (function frame() {
+      mesh.rotation.y += 0.004;
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>11 · Swept-mesh wake</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 11 / 12</div>
+        <h1>Swept-mesh wake / ribbon</h1>
+        <p class="lede">A coherent body of snow or water is a mesh extruded along a path spine — not a particle blob.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW surf + spells</span>
+          <span class="tag stack">data texture · VS</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <ol style="padding-left:1.15rem;color:#c5cddd;font-size:13px">
+        <li>Record the path as samples (here: CPU array; production: 96×3 data texture).</li>
+        <li>Build a static lattice of verts with attributes <code>(column, row, side)</code>.</li>
+        <li>In the VS, place each vert from spine position + normal/binormal × cross-section.</li>
+        <li><code>curl</code> bends the profile from a bank into a breaking lip.</li>
+      </ol>
+      <div class="eq">P(s,t) = spine(s) + R(s) · profile(t, curl)</div>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Curl (breaking lip)</label><span class="val" id="v-curl">0.7</span>
+          <input id="curl" type="range" min="0" max="1.2" step="0.01" value="0.7" />
+        </div>
+        <div class="control">
+          <label>Width</label><span class="val" id="v-w">1.2</span>
+          <input id="w" type="range" min="0.3" max="2.5" step="0.05" value="1.2" />
+        </div>
+        <div class="control">
+          <label>Height</label><span class="val" id="v-h">0.9</span>
+          <input id="h" type="range" min="0.1" max="2" step="0.05" value="0.9" />
+        </div>
+        <div class="control checkbox">
+          <input id="wire" type="checkbox" />
+          <label>Wireframe</label>
+        </div>
+        <div class="control checkbox">
+          <input id="pause" type="checkbox" />
+          <label>Pause path motion</label>
+        </div>
+      </div>
+      <div class="note">Particles are great for spray; the <strong>body</strong> of the wake should be a swept surface so normals and silhouette stay continuous.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#11-swept-mesh">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./10-post-stack.html">← Post</a>
+        <a href="./12-procedural-pbr.html">Next: PBR forge →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">swept wake</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c1824);
+    scene.fog = new THREE.Fog(0x0c1824, 20, 70);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
+    camera.position.set(8, 10, 16);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.5, 0);
+
+    scene.add(new THREE.AmbientLight(0x6688aa, 0.5));
+    const sun = new THREE.DirectionalLight(0xffe8c8, 1.3);
+    sun.position.set(10, 20, 5);
+    scene.add(sun);
+
+    // ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 80),
+      new THREE.MeshStandardMaterial({ color: 0x1a3040, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    const SEG_S = 64; // along path
+    const SEG_T = 12; // across profile
+    const path = [];
+    for (let i = 0; i <= SEG_S; i++) path.push(new THREE.Vector3());
+
+    // lattice geometry: uv.x = s, uv.y = t in [0,1]
+    const positions = [];
+    const uvs = [];
+    const indices = [];
+    for (let j = 0; j <= SEG_T; j++) {
+      for (let i = 0; i <= SEG_S; i++) {
+        positions.push(0, 0, 0);
+        uvs.push(i / SEG_S, j / SEG_T);
+      }
+    }
+    for (let j = 0; j < SEG_T; j++) {
+      for (let i = 0; i < SEG_S; i++) {
+        const a = j * (SEG_S + 1) + i;
+        const b = a + 1;
+        const c = a + (SEG_S + 1);
+        const d = c + 1;
+        indices.push(a, c, b, b, c, d);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+
+    const uniforms = {
+      uCurl: { value: 0.7 },
+      uWidth: { value: 1.2 },
+      uHeight: { value: 0.9 },
+    };
+
+    // We'll update positions on CPU for clarity (teaching). Production does this in VS from a data texture.
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xc8e4f5,
+      roughness: 0.35,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+      flatShading: false,
+    });
+    const wake = new THREE.Mesh(geo, mat);
+    scene.add(wake);
+
+    // board / rider proxy
+    const board = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.08, 1.1),
+      new THREE.MeshStandardMaterial({ color: 0xff6b4a, roughness: 0.4 })
+    );
+    scene.add(board);
+
+    let curl = 0.7, width = 1.2, height = 0.9, paused = false;
+    const el = (id) => document.getElementById(id);
+    el("curl").oninput = (e) => { curl = +e.target.value; el("v-curl").textContent = curl.toFixed(2); };
+    el("w").oninput = (e) => { width = +e.target.value; el("v-w").textContent = width.toFixed(2); };
+    el("h").oninput = (e) => { height = +e.target.value; el("v-h").textContent = height.toFixed(2); };
+    el("wire").onchange = (e) => { mat.wireframe = e.target.checked; };
+    el("pause").onchange = (e) => { paused = e.target.checked; };
+
+    function profile(t, curlAmt) {
+      // t in [0,1] across wake, 0 = inside, 1 = lip
+      // angle from ~0 to ~284° style curl simplified
+      const ang = t * (Math.PI * 0.15 + curlAmt * Math.PI * 0.85);
+      const r = t;
+      return new THREE.Vector2(
+        r * Math.cos(ang) * width,
+        r * Math.sin(ang) * height
+      );
+    }
+
+    function updateWake(time) {
+      // figure-8 / carve path
+      for (let i = 0; i <= SEG_S; i++) {
+        const u = i / SEG_S;
+        const tt = time - (1 - u) * 2.5;
+        const x = Math.sin(tt * 0.9) * 6;
+        const z = tt * 3.5;
+        const y = 0.02;
+        path[i].set(x, y, z);
+      }
+
+      const pos = geo.attributes.position;
+      for (let i = 0; i <= SEG_S; i++) {
+        const p0 = path[Math.max(0, i - 1)];
+        const p1 = path[Math.min(SEG_S, i + 1)];
+        const tangent = new THREE.Vector3().subVectors(p1, p0).normalize();
+        // parallel transport-ish: up cross tangent
+        const normal = new THREE.Vector3(0, 1, 0);
+        const binormal = new THREE.Vector3().crossVectors(tangent, normal).normalize();
+        const up = new THREE.Vector3().crossVectors(binormal, tangent).normalize();
+        // outside of turn gets more amplitude
+        const turn = Math.sin(time * 0.9 + i * 0.05);
+
+        for (let j = 0; j <= SEG_T; j++) {
+          const t = j / SEG_T;
+          const side = turn >= 0 ? 1 : -1; // favor one side
+          const pr = profile(t, curl);
+          const sideScale = 0.35 + 0.65 * Math.max(0, side * Math.sign(binormal.x + 0.001) * turn + 0.5);
+          const offset = new THREE.Vector3()
+            .addScaledVector(binormal, pr.x * side * (0.5 + sideScale))
+            .addScaledVector(up, pr.y);
+          // fade tail
+          const fade = Math.pow(i / SEG_S, 0.6);
+          offset.multiplyScalar(fade);
+
+          const p = path[i].clone().add(offset);
+          const idx = j * (SEG_S + 1) + i;
+          pos.setXYZ(idx, p.x, p.y, p.z);
+        }
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+
+      // board at tip
+      const tip = path[SEG_S];
+      const prev = path[SEG_S - 2];
+      board.position.copy(tip).add(new THREE.Vector3(0, 0.15, 0));
+      board.lookAt(tip.clone().add(tip.clone().sub(prev)));
+    }
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const clock = new THREE.Clock();
+    let t = 0;
+    (function frame() {
+      if (!paused) t = clock.getElapsedTime();
+      updateWake(t);
+      controls.target.lerp(board.position, 0.05);
+      controls.update();
+      el("hud").textContent = `spine ${SEG_S} · profile ${SEG_T} · curl ${curl.toFixed(2)}`;
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

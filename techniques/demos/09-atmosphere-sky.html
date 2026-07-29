@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>09 · Analytic sky</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 09 / 12</div>
+        <h1>Analytic atmosphere / sky</h1>
+        <p class="lede">Scrub the sun elevation and watch horizon warmth, zenith blue, and ground lighting stay coherent — why demos prefer models over static HDRIs.</p>
+        <div class="tagrow">
+          <span class="tag ref">SNOWFLOW · Long Silence</span>
+          <span class="tag stack">scattering</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <p>
+        Simplified single-scattering: denser atmosphere near the horizon, Rayleigh bias toward blue,
+        sun disc + Mie-ish glow, ground albedo bounce. Not a full Nishita integrator, but the
+        <strong>parameter coupling</strong> is the lesson.
+      </p>
+      <ul>
+        <li>Low sun → long warm light, blue fill in shadows</li>
+        <li>High sun → cooler daylight, shorter shadows</li>
+        <li>Aerial perspective: distant terrain loses contrast toward sky color</li>
+      </ul>
+
+      <h2>Prompt match</h2>
+      <p>“Ambient light must be strongly blue-shifted. The cool-shadow and warm-light contrast is essential.”</p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>Sun elevation</label><span class="val" id="v-el">12°</span>
+          <input id="el" type="range" min="-5" max="85" step="0.5" value="12" />
+        </div>
+        <div class="control">
+          <label>Sun azimuth</label><span class="val" id="v-az">40°</span>
+          <input id="az" type="range" min="0" max="360" step="1" value="40" />
+        </div>
+        <div class="control">
+          <label>Turbidity / haze</label><span class="val" id="v-haz">0.45</span>
+          <input id="haz" type="range" min="0.1" max="1" step="0.01" value="0.45" />
+        </div>
+      </div>
+      <div class="note">Drop elevation near 0–15° — snow/desert demos live in that range for long readable shadows.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/01-snowflow-waterbending/">SNOWFLOW waterbending</a> · <a href="/prompts/04-the-long-silence/">The Long Silence</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#09-atmosphere-sky">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./08-bake-vs-evaluate.html">← Bake</a>
+        <a href="./10-post-stack.html">Next: post →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">sky</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 500);
+    camera.position.set(0, 4, 14);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.maxPolarAngle = Math.PI * 0.49;
+    controls.target.set(0, 1, 0);
+
+    const uniforms = {
+      uSunDir: { value: new THREE.Vector3() },
+      uHaze: { value: 0.45 },
+    };
+
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      uniforms,
+      vertexShader: `
+        varying vec3 vDir;
+        void main(){
+          vec4 w = modelMatrix * vec4(position,1.);
+          vDir = normalize(w.xyz);
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: /* glsl */`
+        varying vec3 vDir;
+        uniform vec3 uSunDir;
+        uniform float uHaze;
+        void main(){
+          vec3 d = normalize(vDir);
+          vec3 s = normalize(uSunDir);
+          float elev = s.y;
+          // zenith / horizon colors driven by elevation
+          vec3 zenith = mix(vec3(0.02,0.04,0.12), vec3(0.15,0.35,0.75), smoothstep(-0.05, 0.5, elev));
+          vec3 horizon = mix(vec3(0.9,0.35,0.12), vec3(0.55,0.7,0.9), smoothstep(-0.05, 0.4, elev));
+          horizon = mix(horizon, vec3(0.15,0.12,0.2), smoothstep(0.0, -0.1, elev)); // night
+          float h = pow(1.0 - max(d.y, 0.0), 4.0 * (1.0 - 0.5*uHaze));
+          vec3 col = mix(zenith, horizon, h);
+
+          // sun disc + mie glow
+          float mu = max(dot(d, s), 0.0);
+          float disc = smoothstep(0.9995, 0.9999, mu);
+          float glow = pow(mu, 32.0 * (1.0 - 0.5*uHaze)) * 0.6;
+          vec3 sunCol = mix(vec3(1.0,0.45,0.15), vec3(1.0,0.95,0.85), smoothstep(0.0, 0.35, elev));
+          col += sunCol * (disc * 8.0 + glow);
+          // haze wash
+          col = mix(col, horizon, uHaze * 0.25 * (1.0 - d.y));
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), skyMat));
+
+    // terrain
+    const groundMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uSunDir: uniforms.uSunDir,
+        uHaze: uniforms.uHaze,
+      },
+      vertexShader: `
+        varying vec3 vW; varying vec3 vN;
+        float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        float n2(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));vec2 u=f*f*(3.-2.*f);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}
+        void main(){
+          vec3 p = position;
+          p.y = n2(p.xz*0.08)*1.5 + n2(p.xz*0.3)*0.35;
+          float e=0.4;
+          float hx=n2((p.xz+vec2(e,0))*0.08)-n2((p.xz-vec2(e,0))*0.08);
+          float hz=n2((p.xz+vec2(0,e))*0.08)-n2((p.xz-vec2(0,e))*0.08);
+          vN = normalize(vec3(-hx, e*1.2, -hz));
+          vec4 w = modelMatrix * vec4(p,1.);
+          vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
+      fragmentShader: /* glsl */`
+        varying vec3 vW; varying vec3 vN;
+        uniform vec3 uSunDir; uniform float uHaze;
+        void main(){
+          vec3 N = normalize(vN);
+          vec3 L = normalize(uSunDir);
+          float ndl = max(dot(N,L), 0.0);
+          // wrap a bit
+          float wrap = max((dot(N,L)+0.3)/1.3, 0.0);
+          vec3 sunCol = mix(vec3(1.0,0.5,0.2), vec3(1.0,0.95,0.85), smoothstep(0.0,0.4,L.y));
+          vec3 skyAmb = mix(vec3(0.08,0.12,0.25), vec3(0.25,0.35,0.55), smoothstep(-0.05,0.5,L.y));
+          vec3 albedo = mix(vec3(0.35,0.4,0.28), vec3(0.55,0.48,0.35), smoothstep(0.,2.,vW.y));
+          vec3 col = albedo * (skyAmb * (0.4 + 0.3*N.y) + sunCol * wrap);
+          // aerial perspective
+          float dist = length(cameraPosition - vW);
+          vec3 fogCol = mix(skyAmb, sunCol, 0.3);
+          float fog = 1.0 - exp(-dist * 0.012 * (0.5 + uHaze));
+          col = mix(col, fogCol, fog);
+          gl_FragColor = vec4(col, 1.0);
+        }`,
+    });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80, 120, 120), groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    function setSun(elDeg, azDeg) {
+      const el = elDeg * Math.PI / 180;
+      const az = azDeg * Math.PI / 180;
+      const d = new THREE.Vector3(
+        Math.cos(el) * Math.cos(az),
+        Math.sin(el),
+        Math.cos(el) * Math.sin(az)
+      );
+      uniforms.uSunDir.value.copy(d);
+    }
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const el = (id) => document.getElementById(id);
+    function sync() {
+      const elev = +el("el").value, az = +el("az").value, haz = +el("haz").value;
+      el("v-el").textContent = elev + "°";
+      el("v-az").textContent = az + "°";
+      el("v-haz").textContent = haz.toFixed(2);
+      uniforms.uHaze.value = haz;
+      setSun(elev, az);
+      el("hud").textContent = `sun elev ${elev}° · ${elev < 15 ? "golden / long shadow" : elev > 50 ? "high day" : "daylight"}`;
+    }
+    el("el").oninput = sync;
+    el("az").oninput = sync;
+    el("haz").oninput = sync;
+    sync();
+
+    (function frame() {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

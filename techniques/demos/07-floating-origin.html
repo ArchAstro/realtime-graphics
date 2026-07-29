@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>07 · Floating origin</title>
+  <link rel="stylesheet" href="../shared.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="panel">
+      <header>
+        <div class="crumb"><a href="./index.html">Demos</a> · <a href="/techniques/">Techniques</a> · 07 / 12</div>
+        <h1>Floating origin + precision</h1>
+        <p class="lede">At large coordinates, float32 eats your sub-meter detail. Keep the player at 0 and move the world instead.</p>
+        <div class="tagrow">
+          <span class="tag ref">Long Silence</span>
+          <span class="tag stack">precision · depth</span>
+        </div>
+      </header>
+
+      <h2>How it works</h2>
+      <ul>
+        <li><strong>Naive:</strong> ship world position → 1e6+; nearby props jitter</li>
+        <li><strong>Floating origin:</strong> ship stays at (0,0,0); subtract ship position from every object each frame (or in chunks)</li>
+        <li><strong>Log depth:</strong> remap depth so near and far nested spheres share resolution — custom shaders must opt in</li>
+      </ul>
+      <div class="eq">p_render = p_world − player_world</div>
+
+      <h2>What this demo shows</h2>
+      <p>
+        Two panels of a grid of thin poles. Left: positions placed at a huge origin offset
+        (simulating far-from-origin). Right: same relative layout recentered. Crank the
+        offset — left turns to spaghetti, right stays clean.
+      </p>
+
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="control">
+          <label>World offset magnitude</label><span class="val" id="v-off">10000</span>
+          <input id="off" type="range" min="0" max="200000" step="1000" value="10000" />
+        </div>
+        <div class="control checkbox">
+          <input id="spin" type="checkbox" checked />
+          <label>Animate (makes jitter obvious)</label>
+        </div>
+      </div>
+      <div class="note">Also pair with <strong>logarithmic depth</strong> when you nest planet-scale spheres — linear 24-bit depth loses the fight first.</div>
+      
+      <h2>Source prompts</h2>
+      <p style="font-size:13px;color:#c5cddd"><a href="/prompts/04-the-long-silence/">The Long Silence</a></p>
+      <p style="font-size:12px;color:var(--muted)"><a href="/techniques/#07-floating-origin">Technique notes</a> · <a href="/techniques/">All techniques</a></p>
+
+      <div class="nav-next">
+        <a href="./06-sdf-blend-shell.html">← SDF shell</a>
+        <a href="./08-bake-vs-evaluate.html">Next: bake →</a>
+      </div>
+    </aside>
+    <main class="stage" id="stage"><div class="hud"><span id="hud">left: naive · right: floating origin</span></div></main>
+  </div>
+
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }}
+  </script>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const stage = document.getElementById("stage");
+    const renderer = new THREE.WebGLRenderer({ antialias: false }); // MSAA can hide jitter
+    renderer.setPixelRatio(1); // force 1 for clearer jitter
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x080a10);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
+    camera.position.set(0, 8, 18);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir.position.set(5, 10, 5);
+    scene.add(dir);
+
+    function makeCluster(color, label) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+      // fine structure: thin poles on a grid — sensitive to precision
+      for (let x = -4; x <= 4; x++) {
+        for (let z = -4; z <= 4; z++) {
+          const pole = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.2, 0.06), mat);
+          pole.position.set(x * 0.55, 1.1, z * 0.55);
+          g.add(pole);
+          // tiny cross bars
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.04), mat);
+          bar.position.set(x * 0.55, 1.6, z * 0.55);
+          g.add(bar);
+        }
+      }
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(5.2, 0.1, 5.2),
+        new THREE.MeshStandardMaterial({ color: 0x1a2030 })
+      );
+      base.position.y = 0.05;
+      g.add(base);
+      return g;
+    }
+
+    const naive = makeCluster(0xff6b6b, "naive");
+    const floating = makeCluster(0x7ddea2, "float");
+    naive.position.x = -6;
+    floating.position.x = 6;
+    scene.add(naive, floating);
+
+    // labels as sprites
+    function makeLabel(text, color) {
+      const c = document.createElement("canvas");
+      c.width = 256; c.height = 64;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = color;
+      ctx.font = "bold 28px sans-serif";
+      ctx.fillText(text, 16, 40);
+      const tex = new THREE.CanvasTexture(c);
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+      spr.scale.set(4, 1, 1);
+      return spr;
+    }
+    const l1 = makeLabel("NAIVE far origin", "#ff8a8a");
+    l1.position.set(-6, 3.5, 0);
+    const l2 = makeLabel("FLOATING origin", "#9dffc0");
+    l2.position.set(6, 3.5, 0);
+    scene.add(l1, l2);
+
+    // Store local rest positions
+    const naiveParts = [];
+    naive.traverse((o) => {
+      if (o.isMesh && o !== naive) {
+        naiveParts.push({ mesh: o, local: o.position.clone() });
+      }
+    });
+    // Actually children of group - collect meshes
+    const naiveMeshes = [];
+    naive.children.forEach((ch) => {
+      if (ch.isMesh) naiveMeshes.push({ mesh: ch, rest: ch.position.clone() });
+    });
+    const floatMeshes = [];
+    floating.children.forEach((ch) => {
+      if (ch.isMesh) floatMeshes.push({ mesh: ch, rest: ch.position.clone() });
+    });
+
+    let worldOffset = 10000;
+    let animate = true;
+    const el = (id) => document.getElementById(id);
+    el("off").oninput = (e) => {
+      worldOffset = +e.target.value;
+      el("v-off").textContent = worldOffset.toLocaleString();
+    };
+    el("spin").onchange = (e) => { animate = e.target.checked; };
+
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / Math.max(h, 1);
+      camera.updateProjectionMatrix();
+    }
+    addEventListener("resize", resize);
+    resize();
+
+    const clock = new THREE.Clock();
+    (function frame() {
+      const t = clock.getElapsedTime();
+      const wobble = animate ? Math.sin(t * 2.5) * 0.15 : 0;
+
+      // NAIVE: place objects at worldOffset + local — float32 loses bits
+      // We simulate by adding offset then subtracting only for the group position
+      // so the *relative* mesh matrix multiplies large numbers.
+      naive.position.set(-6 + worldOffset, 0, worldOffset);
+      // camera looks at recentered content — move naive group back visually by offsetting camera? 
+      // Better approach: set mesh matrix elements with large numbers while keeping group near origin
+      naive.position.set(-6, 0, 0);
+      naiveMeshes.forEach(({ mesh, rest }) => {
+        // encode far-from-origin into position: large base + small rest
+        // Three.js uses float32 buffers — assigning large values causes quantisation
+        mesh.position.set(
+          rest.x + worldOffset,
+          rest.y + wobble,
+          rest.z + worldOffset
+        );
+      });
+      // then shift group to cancel mean offset so both stay on screen
+      naive.position.set(-6 - worldOffset, 0, -worldOffset);
+
+      // FLOATING: always small local coords; "world" offset is bookkeeping only
+      floating.position.set(6, 0, 0);
+      floatMeshes.forEach(({ mesh, rest }) => {
+        mesh.position.set(rest.x, rest.y + wobble, rest.z);
+      });
+
+      el("hud").textContent = `offset ${worldOffset.toLocaleString()} · left jitters when large`;
+
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(frame);
+    })();
+  </script>
+  <script src="/techniques/site-bg.js?v=4"></script>
+</body>
+</html>

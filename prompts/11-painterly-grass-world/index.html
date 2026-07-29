@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painterly grass world — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/10-panama-canal-locks/">← Panama Canal locks</a>
+        <a href="/prompts/12-luxury-mansion-night/">Luxury mansion night →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">11</span>
+        <span class="hero-id">11-painterly-grass-world</span>
+      </div>
+      <h1>Painterly grass world</h1>
+      <p class="hero-blurb">Reconstruction seed</p>
+      <div class="hero-actions">
+        <a class="btn" href="https://x.com/Lentils80/status/2081136109778538917" target="_blank" rel="noopener">X / Twitter ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#notes">Notes</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Viral single-HTML procedural world with millions of wind-reactive grass blades — pure visual/sim beauty. Prompt not published; included for reference + codepen.</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">Single HTML file (Three.js-class realtime)</div></div><div class="fact"><span class="fact-key">X</span><div class="fact-val"><a href="https://x.com/Lentils80/status/2081136109778538917" target="_blank" rel="noopener">https://x.com/Lentils80/status/2081136109778538917</a></div></div><div class="fact"><span class="fact-key">Shared by</span><div class="fact-val"><code>@Lentils80</code> (code attributed as Opus 5 one-shot)</div></div><div class="fact"><span class="fact-key">Code</span><div class="fact-val"><a href="https://codepen.io/editor/lentils801/pen/019f9b4b-10d7-7f77-817f-f4eb83fdb289" target="_blank" rel="noopener">https://codepen.io/editor/lentils801/pen/019f9b4b-10d7-7f77-817f-f4eb83fdb289</a></div></div><div class="fact"><span class="fact-key">Reddit mirror</span><div class="fact-val"><a href="https://www.reddit.com/r/singularity/comments/1v6o465/opus_5_built_a_procedural_painterly_world_with/" target="_blank" rel="noopener">https://www.reddit.com/r/singularity/comments/1v6o465/opus_5_built_a_procedural_painterly_world_with/</a></div></div></div>
+            <div class="doc overview-doc" style="margin-top:1rem"><h2 id="prompt-status">Prompt status</h2>
+<p>Original prompt not shared publicly. See <a href="./notes.md" target="_blank" rel="noopener"><code>notes.md</code></a> for a reconstruction seed aimed at the same visual class.</p></div>
+          </div>
+        </section>
+
+        
+        
+        <section class="card" id="notes">
+          <div class="card-head"><h2>Notes</h2></div>
+          <div class="card-body">
+            <div class="doc"><h1 id="painterly-grass-world-reconstruction-seed">Painterly grass world — reconstruction seed</h1>
+<p>Original prompt unknown. Seed for experiments targeting the same class of result:</p>
+<pre class="codeblock"><code>Build a single self-contained HTML file (Three.js via CDN is fine) that is a
+painterly outdoor world the player can walk or fly through.
+
+VISUAL GOAL: Studio Ghibli / watercolor landscape energy — soft hills, layered
+atmospheric fog, hand-painted color grading — but fully realtime and interactive.
+
+NON-NEGOTIABLE FEATURE:
+Instanced grass field covering the terrain. Millions of blades (or the illusion
+of millions via dense instancing + LOD). Every blade reacts to a continuous
+wind field simulation (gusts, direction changes, turbulence). Grass should also
+react locally when the camera/player moves through it.
+
+ALSO INCLUDE:
+- Procedural terrain with rolling hills
+- Trees or flowers as secondary instanced vegetation
+- Soft sky + sun disk, warm rim light
+- Camera: smooth free-fly or third-person walk
+- 60fps target on a mid-range desktop GPU
+- No external image/model assets — pure procedural geometry and shaders
+
+When you think you&#x27;re done, screenshot. If the grass doesn&#x27;t feel alive in the
+wind, you&#x27;re not done.</code></pre></div>
+          </div>
+        </section>
+        
+
+        <div class="footer-nav pager">
+          <a href="/prompts/10-panama-canal-locks/">← Panama Canal locks</a>
+          <a href="/prompts/12-luxury-mansion-night/">Luxury mansion night →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>

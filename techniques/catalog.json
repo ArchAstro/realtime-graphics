@@ -1,0 +1,218 @@
+{
+  "techniques": {
+    "01-geometry-clipmap": {
+      "title": "Geometry clipmap terrain",
+      "why": "Infinite ground at high near density, one draw",
+      "demo": "01-geometry-clipmap.html",
+      "seen": "SNOWFLOW, desert explorer",
+      "match": "geometry clipmap or nested-ring LOD \u00b7 sub-10 cm inner spacing \u00b7 one static mesh, one draw call",
+      "prompts": [
+        "01-snowflow-waterbending",
+        "02-desert-explorer"
+      ]
+    },
+    "02-layered-wind-noise": {
+      "title": "Layered wind-anisotropic noise",
+      "why": "Dunes that look carved by weather, not isotropic fBm",
+      "demo": "02-layered-wind-noise.html",
+      "seen": "SNOWFLOW heightfield, desert dunes",
+      "match": "directional structure carved by a prevailing wind \u00b7 sastrugi \u00b7 lee-face asymmetry",
+      "prompts": [
+        "01-snowflow-waterbending",
+        "02-desert-explorer"
+      ]
+    },
+    "03-deformation-buffer": {
+      "title": "Persistent deformation buffer",
+      "why": "Footprints/spells with berms that self-shadow",
+      "demo": "03-deformation-buffer.html",
+      "seen": "SNOWFLOW \u00a72.3, desert sand spells",
+      "match": "persistent and additive \u00b7 never rebuild from a list of past events \u00b7 trail that does not self-shadow is a failure",
+      "prompts": [
+        "01-snowflow-waterbending",
+        "02-desert-explorer"
+      ]
+    },
+    "04-multi-scale-shading": {
+      "title": "Multi-scale snow / surface shading",
+      "why": "Detail that reads at dune, ripple, and grain scales",
+      "demo": "04-multi-scale-shading.html",
+      "seen": "SNOWFLOW snow material",
+      "match": "detail at three tiling scales \u00b7 surface detail legible at three distinct scales simultaneously",
+      "prompts": [
+        "01-snowflow-waterbending"
+      ]
+    },
+    "05-wrap-sss": {
+      "title": "Wrapped diffuse + cheap SSS",
+      "why": "The term that makes snow/skin look translucent",
+      "demo": "05-wrap-sss.html",
+      "seen": "SNOWFLOW snow SSS, spell lights through berms",
+      "match": "this single term does more for reads-as-snow than almost anything else",
+      "prompts": [
+        "01-snowflow-waterbending"
+      ]
+    },
+    "06-sdf-blend-shell": {
+      "title": "SDF blend-shell characters",
+      "why": "Seamless procedural bodies without raymarching",
+      "demo": "06-sdf-blend-shell.html",
+      "seen": "Fable procedural creatures",
+      "match": "ragdoll-like primitives that look like one seamless body \u00b7 mobile-performant tech-art solution",
+      "prompts": [
+        "06-sdf-blend-shell-creatures"
+      ]
+    },
+    "07-floating-origin": {
+      "title": "Floating origin + log depth",
+      "why": "Large worlds without jitter and z-fighting",
+      "demo": "07-floating-origin.html",
+      "seen": "The Long Silence",
+      "match": "one world unit is one kilometre \u00b7 floating origin \u00b7 LOGD_* chunks",
+      "prompts": [
+        "04-the-long-silence"
+      ]
+    },
+    "08-bake-vs-evaluate": {
+      "title": "Bake vs evaluate",
+      "why": "When noise is too expensive per pixel",
+      "demo": "08-bake-vs-evaluate.html",
+      "seen": "Long Silence planet cubemaps",
+      "match": "planets are baked, not evaluated \u00b7 runtime shader is three texture taps",
+      "prompts": [
+        "04-the-long-silence"
+      ]
+    },
+    "09-atmosphere-sky": {
+      "title": "Analytic atmosphere / sky",
+      "why": "Sun elevation that moves the whole look",
+      "demo": "09-atmosphere-sky.html",
+      "seen": "SNOWFLOW Nishita LUT, Long Silence Rayleigh shell",
+      "match": "low warm sun \u00b7 ambient strongly blue-shifted \u00b7 elevation slider correctly drags horizon warmth",
+      "prompts": [
+        "01-snowflow-waterbending",
+        "04-the-long-silence"
+      ]
+    },
+    "10-post-stack": {
+      "title": "Post stack + tonemap discipline",
+      "why": "TAA-ready polish without clipping snow white",
+      "demo": "10-post-stack.html",
+      "seen": "SNOWFLOW, Long Silence, Claude of Duty",
+      "match": "blown-out white is the primary failure mode \u00b7 TAA is essential",
+      "prompts": [
+        "01-snowflow-waterbending",
+        "03-claude-of-duty",
+        "04-the-long-silence"
+      ]
+    },
+    "11-swept-mesh": {
+      "title": "Swept-mesh wake / ribbon VFX",
+      "why": "Coherent water/snow bodies, not particle mush",
+      "demo": "11-swept-mesh.html",
+      "seen": "SNOWFLOW snow-surf wake + water spells",
+      "match": "wake is a swept mesh, not a particle effect \u00b7 one curl parameter from bank to hanging lip",
+      "prompts": [
+        "01-snowflow-waterbending"
+      ]
+    },
+    "12-procedural-pbr": {
+      "title": "Procedural PBR texture forge",
+      "why": "Zero art assets, tiled materials from noise",
+      "demo": "12-procedural-pbr.html",
+      "seen": "Claude of Duty materials, Solebound leather",
+      "match": "GPU texture forge \u00b7 no art assets \u00b7 periodic noise so everything tiles",
+      "prompts": [
+        "03-claude-of-duty",
+        "05-solebound-shoe-repair"
+      ]
+    }
+  },
+  "prompts": {
+    "01-snowflow-waterbending": {
+      "title": "SNOWFLOW waterbending",
+      "blurb": "Full WebGPU implementation brief",
+      "techniques": [
+        "01-geometry-clipmap",
+        "02-layered-wind-noise",
+        "03-deformation-buffer",
+        "04-multi-scale-shading",
+        "05-wrap-sss",
+        "09-atmosphere-sky",
+        "10-post-stack",
+        "11-swept-mesh"
+      ]
+    },
+    "02-desert-explorer": {
+      "title": "Desert explorer",
+      "blurb": "Process notes + reconstructed seed",
+      "techniques": [
+        "01-geometry-clipmap",
+        "02-layered-wind-noise",
+        "03-deformation-buffer"
+      ]
+    },
+    "03-claude-of-duty": {
+      "title": "Claude of Duty",
+      "blurb": "Matt Shumer orchestrator FPS prompt",
+      "techniques": [
+        "10-post-stack",
+        "12-procedural-pbr"
+      ]
+    },
+    "04-the-long-silence": {
+      "title": "The Long Silence",
+      "blurb": "Space game initial + visual /goal",
+      "techniques": [
+        "07-floating-origin",
+        "08-bake-vs-evaluate",
+        "09-atmosphere-sky",
+        "10-post-stack"
+      ]
+    },
+    "05-solebound-shoe-repair": {
+      "title": "SOLEBOUND",
+      "blurb": "Max-effort shoe repair sim",
+      "techniques": [
+        "12-procedural-pbr"
+      ]
+    },
+    "06-sdf-blend-shell-creatures": {
+      "title": "SDF blend-shell creatures",
+      "blurb": "Fable procedural critters",
+      "techniques": [
+        "06-sdf-blend-shell"
+      ]
+    },
+    "07-bustling-3d-city": {
+      "title": "Bustling 3D city",
+      "blurb": "One-shot city scene",
+      "techniques": []
+    },
+    "08-cod-zombies-clone": {
+      "title": "COD Zombies clone",
+      "blurb": "Lazy one-liner FPS",
+      "techniques": []
+    },
+    "09-tower-crane-construction": {
+      "title": "Tower crane sim",
+      "blurb": "Autonomous construction",
+      "techniques": []
+    },
+    "10-panama-canal-locks": {
+      "title": "Panama Canal locks",
+      "blurb": "Lock transit bake-off prompt",
+      "techniques": []
+    },
+    "11-painterly-grass-world": {
+      "title": "Painterly grass world",
+      "blurb": "Reconstruction seed",
+      "techniques": []
+    },
+    "12-luxury-mansion-night": {
+      "title": "Luxury mansion night",
+      "blurb": "One-shot environment",
+      "techniques": []
+    }
+  }
+}

@@ -1,0 +1,5 @@
+.tmp-*.png
+.DS_Store
+node_modules/
+.skills-lock.json
+skills-lock.json

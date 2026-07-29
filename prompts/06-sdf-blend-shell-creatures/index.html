@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SDF blend-shell creatures — Prompt archive</title>
+  <link rel="stylesheet" href="/techniques/shared.css" />
+  <link rel="stylesheet" href="/prompts/prompt-page.css" />
+</head>
+<body class="prompt-page">
+  <div class="shell site-content">
+    <div class="topnav">
+      <div class="crumbs">
+        <a href="/">Home</a> ·
+        <a href="/techniques/">Techniques</a> ·
+        <a href="/techniques/demos/">Demos</a> ·
+        <a href="/prompts/">Prompts</a>
+      </div>
+      <div class="pager">
+        <a href="/prompts/05-solebound-shoe-repair/">← SOLEBOUND</a>
+        <a href="/prompts/07-bustling-3d-city/">Bustling 3D city →</a>
+      </div>
+    </div>
+
+    <header class="hero">
+      <div class="hero-kicker">
+        <span class="hero-num">06</span>
+        <span class="hero-id">06-sdf-blend-shell-creatures</span>
+      </div>
+      <h1>SDF blend-shell creatures</h1>
+      <p class="hero-blurb">Fable procedural critters</p>
+      <div class="hero-actions">
+        <a class="btn" href="https://www.reddit.com/r/aigamedev/comments/1umiurs/fable_5_just_oneshot_crazy_cool_procedural/" target="_blank" rel="noopener">Reddit ↗</a>
+        <a class="btn" href="/prompts/">All prompts</a>
+      </div>
+    </header>
+
+    <div class="layout-prompt">
+      <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <nav>
+          <a href="#overview">Overview</a>
+<a href="#prompt">Prompt</a>
+<a href="#techniques">Techniques</a>
+        </nav>
+      </aside>
+
+      <div class="main-col">
+        <section class="card" id="overview">
+          <div class="card-head"><h2>Overview</h2></div>
+          <div class="card-body">
+            <p class="why"><strong>Why it's here.</strong> Novel tech-art solution (vertex-snapped smooth-min SDF shell) + fully procedural multi-legged animation, one-shot by Fable 5 in ~90 minutes. Highly functional as a character generator (characters ≈ 15 lines of JSON).</p>
+            <div class="facts"><div class="fact"><span class="fact-key">Author</span><div class="fact-val">Reddit OP (shared breakdown as <code>AntiqueFeedback7447</code>)</div></div><div class="fact"><span class="fact-key">Model</span><div class="fact-val">Fable 5 @ xHigh reasoning</div></div><div class="fact"><span class="fact-key">Stack</span><div class="fact-val">Three.js, custom vertex shader SDF blend-shell</div></div><div class="fact"><span class="fact-key">Reddit</span><div class="fact-val"><a href="https://www.reddit.com/r/aigamedev/comments/1umiurs/fable_5_just_oneshot_crazy_cool_procedural/" target="_blank" rel="noopener">https://www.reddit.com/r/aigamedev/comments/1umiurs/fable_5_just_oneshot_crazy_cool_procedural/</a></div></div><div class="fact"><span class="fact-key">Duration</span><div class="fact-val">~90 min active from empty dir</div></div></div>
+            
+          </div>
+        </section>
+
+        
+        <section class="card prompt-panel" id="prompt">
+          <div class="card-head">
+            <h2>Prompt</h2>
+            
+              <div style="display:flex;align-items:center;gap:0.65rem">
+                <span class="copy-status" id="copy-status"></span>
+                <button type="button" class="btn ghost" id="copy-prompt">Copy prompt</button>
+              </div>
+          </div>
+          <div class="card-body">
+            <div class="prompt-body" id="prompt-source" data-raw="# SDF blend-shell creatures — initial prompt
+
+Source: Reddit r/aigamedev comment by OP on [Fable 5 procedural creatures](https://www.reddit.com/r/aigamedev/comments/1umiurs/fable_5_just_oneshot_crazy_cool_procedural/)
+
+```
+Build with Three.js and explore a new procedurally generated 3D character style — ragdoll-like characters composed of primitive shapes that look like one seamless body via a custom, mobile-performant tech-art/shader solution, with toon styling, plus a procedural animation system that works for 2-legged, any-legged, no-legged (hopping) and flying characters with arms. Goal: a unique, easily AI-generatable style with heavy juice and polish — &quot;HOLY SH** THIS WAS DONE WITH AI?&quot; quality, &quot;for the next billion dollar game.&quot;
+```
+
+## What Fable invented (OP summary)
+
+- Capsule/cone primitives merged to one draw call
+- Vertex shader snaps verts onto **smooth-min SDF surface of all shapes** → seams vanish
+- Normals from SDF gradient; colors blend by proximity
+- Outlines on SDF *offset* surface; thin parts cap blend radius
+- Procedural animation: reactive IK feet (2/4/6 legs), hop state machine, flyer bank, physics rope tails that are also SDF primitives
+- Character definition ≈ 15 lines of JSON
+">
+              <div class="doc"><h1 id="sdf-blend-shell-creatures-initial-prompt">SDF blend-shell creatures — initial prompt</h1>
+<p>Source: Reddit r/aigamedev comment by OP on <a href="https://www.reddit.com/r/aigamedev/comments/1umiurs/fable_5_just_oneshot_crazy_cool_procedural/" target="_blank" rel="noopener">Fable 5 procedural creatures</a></p>
+<pre class="codeblock"><code>Build with Three.js and explore a new procedurally generated 3D character style — ragdoll-like characters composed of primitive shapes that look like one seamless body via a custom, mobile-performant tech-art/shader solution, with toon styling, plus a procedural animation system that works for 2-legged, any-legged, no-legged (hopping) and flying characters with arms. Goal: a unique, easily AI-generatable style with heavy juice and polish — &quot;HOLY SH** THIS WAS DONE WITH AI?&quot; quality, &quot;for the next billion dollar game.&quot;</code></pre>
+<h2 id="what-fable-invented-op-summary">What Fable invented (OP summary)</h2>
+<ul>
+<li>Capsule/cone primitives merged to one draw call</li>
+<li>Vertex shader snaps verts onto <strong>smooth-min SDF surface of all shapes</strong> → seams vanish</li>
+<li>Normals from SDF gradient; colors blend by proximity</li>
+<li>Outlines on SDF <em>offset</em> surface; thin parts cap blend radius</li>
+<li>Procedural animation: reactive IK feet (2/4/6 legs), hop state machine, flyer bank, physics rope tails that are also SDF primitives</li>
+<li>Character definition ≈ 15 lines of JSON</li>
+</ul></div>
+            </div>
+          </div>
+        </section>
+        
+        
+        <section class="card" id="techniques">
+          <div class="card-head"><h2>Related techniques</h2></div>
+          <div class="card-body">
+            <div class="tech-grid">
+            <div class="tech-card">
+              <div class="t-title">SDF blend-shell characters</div>
+              <div class="t-why">Seamless procedural bodies without raymarching</div>
+              <div class="t-links">
+                <a href="/techniques/#06-sdf-blend-shell">Notes</a>
+                <a href="/techniques/demos/06-sdf-blend-shell.html">Live demo</a>
+              </div>
+            </div></div>
+          </div>
+        </section>
+
+        <div class="footer-nav pager">
+          <a href="/prompts/05-solebound-shoe-repair/">← SOLEBOUND</a>
+          <a href="/prompts/07-bustling-3d-city/">Bustling 3D city →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/techniques/site-bg.js?v=4"></script>
+  <script>
+    // Prefer raw markdown for copy (cleaner than rendered text)
+    (function () {
+      const btn = document.getElementById("copy-prompt");
+      const el = document.getElementById("prompt-source");
+      const status = document.getElementById("copy-status");
+      if (!btn || !el) return;
+      btn.addEventListener("click", async () => {
+        const raw = el.getAttribute("data-raw") || el.innerText || "";
+        // decode HTML entities from attribute
+        const ta = document.createElement("textarea");
+        ta.innerHTML = raw;
+        const text = ta.value;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (status) { status.textContent = "Copied"; status.classList.add("show"); setTimeout(() => status.classList.remove("show"), 1600); }
+        } catch (e) {
+          if (status) { status.textContent = "Copy failed"; status.classList.add("show"); }
+        }
+      });
+    })();
+  </script>
+  <script src="/prompts/prompt-page.js"></script>
+</body>
+</html>
