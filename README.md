@@ -112,11 +112,11 @@ npx skills add . --skill realtime-graphics-prompt -g -y
 npm run skills:install:global
 ```
 
-After the repo is on GitHub as `owner/realtime-graphics-prompts`:
+From GitHub:
 
 ```bash
-npx skills add owner/realtime-graphics-prompts --skill realtime-graphics-prompt -y
-npx skills add owner/realtime-graphics-prompts --skill realtime-graphics-prompt -g -y
+npx skills add ArchAstro/realtime-graphics --skill realtime-graphics-prompt -y
+npx skills add ArchAstro/realtime-graphics --skill realtime-graphics-prompt -g -y
 ```
 
 #### Use the skill
