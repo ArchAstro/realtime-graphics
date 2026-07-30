@@ -8,7 +8,7 @@ You are the sole engineer and technical artist on a real-time graphics tech demo
 
 Visual quality is the product. There is no gameplay loop, no progression, no UI to design around. A player will load this, walk around a snow field for ninety seconds, cast a few spells, surf across a dune, and either think "this is AAA" or close the tab. Everything below serves that single judgment.
 Two rules that override everything else in this document:
-If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in [`DECISIONS.md`](DECISIONS.md) with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn't paying for its pixels.
+If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in `DECISIONS.md` with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn't paying for its pixels.
 Anything that reads as low-poly, flat-shaded, untextured, placeholder, or "indie prototype" is a defect, not a stepping stone. If you can't make a thing look finished, cut it from the frame rather than ship it looking rough.
 Do not stop at "it works." Stop when every captured frame looks polished, cohesive, and production-ready.
 ## 1. Stack and hard constraints
@@ -140,6 +140,8 @@ No HUD. No crosshair. No spell bar. Nothing else on screen, ever.
 ## 6. Project structure
 
 Suggested structure; adapt as needed:
+
+```
 /src
   /core        engine bootstrap, render loop, resource manager, pooling
   /terrain     clipmap, procedural heightfield, deformation buffers
@@ -149,9 +151,11 @@ Suggested structure; adapt as needed:
   /vfx         particle systems, decals, spray
   /post        post-process chain
   /ui          settings overlay
-/assets        vendored, with [ASSETS.md](ASSETS.md)
-[DECISIONS.md](DECISIONS.md)   every deviation from this brief + rationale
-[PERF.md](PERF.md)measured frame budget per system
+/assets        vendored, with ASSETS.md
+DECISIONS.md   every deviation from this brief + rationale
+PERF.md        measured frame budget per system
+```
+
 ## 7. Milestones
 
 Take a 1440p screenshot at every milestone, inspect it critically, and commit the screenshots.
@@ -185,5 +189,5 @@ Build, don't test-loop. Playwright is available for capturing screenshots at mil
 Look at your own output constantly. Capture screenshots, inspect them critically, and iterate on values. Most of the quality gap between "prototype" and "AAA" is parameter tuning, and you can only close it by looking.
 Do not move on from an ugly milestone. Milestone 2 in particular is a hard gate.
 When a technique is not working, replace it rather than patching it. You have full latitude over the approach.
-Record every deviation in [`DECISIONS.md`](DECISIONS.md), briefly. One line is sufficient.
+Record every deviation in `DECISIONS.md`, briefly. One line is sufficient.
 Ship something worth screenshotting.

@@ -29,16 +29,31 @@
 
       <h2>What this demo shows</h2>
       <p>
-        Two panels of a grid of thin poles. Left: positions placed at a huge origin offset
-        (simulating far-from-origin). Right: same relative layout recentered. Crank the
-        offset — left turns to spaghetti, right stays clean.
+        Two panels of a grid of thin poles. Left: each world position is rounded to
+        <strong>float32</strong> while the origin is far away. Right: same relative layout,
+        coordinates kept small. Crank the offset — left snaps to a coarse grid and jitters,
+        right stays clean.
+      </p>
+      <p>
+        Float32 carries a 24-bit significand, so the representable spacing at
+        <code>|x|</code> is <code>2<sup>exp(x)−23</sup></code>. At 8&nbsp;million units that
+        is 0.5&nbsp;m — larger than the gap between these poles. The HUD prints the grid
+        for the current offset.
+      </p>
+      <div class="eq">ulp(x) = 2^(floor(log2|x|) − 23)</div>
+      <p class="note">
+        Worth knowing if you try to reproduce this: three.js <code>Vector3</code> and
+        <code>Matrix4</code> hold <em>float64</em>. Adding a huge offset and subtracting it
+        again cancels exactly and shows nothing at all. The loss only appears if you round
+        to float32 <em>while</em> the coordinate is large — here via <code>Math.fround</code>,
+        in an engine via float32 transform storage or a vertex buffer.
       </p>
 
       <h2>Controls</h2>
       <div class="controls">
         <div class="control">
-          <label>World offset magnitude</label><span class="val" id="v-off">10000</span>
-          <input id="off" type="range" min="0" max="200000" step="1000" value="10000" />
+          <label>World offset magnitude</label><span class="val" id="v-off">1,000,000</span>
+          <input id="off" type="range" min="0" max="8000000" step="50000" value="1000000" />
         </div>
         <div class="control checkbox">
           <input id="spin" type="checkbox" checked />
@@ -77,7 +92,9 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x080a10);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
-    camera.position.set(0, 8, 18);
+    // Far enough back that both ±6 clusters (5.2 wide plus poles) clear the
+    // frame edges at the default aspect.
+    camera.position.set(0, 9, 24);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1, 0);
 
@@ -136,13 +153,6 @@
     scene.add(l1, l2);
 
     // Store local rest positions
-    const naiveParts = [];
-    naive.traverse((o) => {
-      if (o.isMesh && o !== naive) {
-        naiveParts.push({ mesh: o, local: o.position.clone() });
-      }
-    });
-    // Actually children of group - collect meshes
     const naiveMeshes = [];
     naive.children.forEach((ch) => {
       if (ch.isMesh) naiveMeshes.push({ mesh: ch, rest: ch.position.clone() });
@@ -152,7 +162,7 @@
       if (ch.isMesh) floatMeshes.push({ mesh: ch, rest: ch.position.clone() });
     });
 
-    let worldOffset = 10000;
+    let worldOffset = 1000000;
     let animate = true;
     const el = (id) => document.getElementById(id);
     el("off").oninput = (e) => {
@@ -175,32 +185,35 @@
       const t = clock.getElapsedTime();
       const wobble = animate ? Math.sin(t * 2.5) * 0.15 : 0;
 
-      // NAIVE: place objects at worldOffset + local — float32 loses bits
-      // We simulate by adding offset then subtracting only for the group position
-      // so the *relative* mesh matrix multiplies large numbers.
-      naive.position.set(-6 + worldOffset, 0, worldOffset);
-      // camera looks at recentered content — move naive group back visually by offsetting camera? 
-      // Better approach: set mesh matrix elements with large numbers while keeping group near origin
+      // NAIVE: the engine stores each object's world position in float32 while
+      // the world origin is worldOffset away. Math.fround is what makes this
+      // real: three.js Vector3/Matrix4 are float64, so simply adding and then
+      // subtracting the offset cancels exactly and shows nothing. Rounding to
+      // float32 *while the coordinate is large* is where the bits are lost.
       naive.position.set(-6, 0, 0);
       naiveMeshes.forEach(({ mesh, rest }) => {
-        // encode far-from-origin into position: large base + small rest
-        // Three.js uses float32 buffers — assigning large values causes quantisation
-        mesh.position.set(
-          rest.x + worldOffset,
-          rest.y + wobble,
-          rest.z + worldOffset
-        );
+        const wx = Math.fround(rest.x + worldOffset);
+        const wy = Math.fround(rest.y + wobble + worldOffset);
+        const wz = Math.fround(rest.z + worldOffset);
+        // Rebase for display. The quantisation is already baked in, so what
+        // survives is the error, not the offset.
+        mesh.position.set(wx - worldOffset, wy - worldOffset, wz - worldOffset);
       });
-      // then shift group to cancel mean offset so both stay on screen
-      naive.position.set(-6 - worldOffset, 0, -worldOffset);
 
-      // FLOATING: always small local coords; "world" offset is bookkeeping only
+      // FLOATING: local coords stay small, so float32 has bits to spare here.
+      // The offset is bookkeeping only — it never enters a coordinate.
       floating.position.set(6, 0, 0);
       floatMeshes.forEach(({ mesh, rest }) => {
         mesh.position.set(rest.x, rest.y + wobble, rest.z);
       });
 
-      el("hud").textContent = `offset ${worldOffset.toLocaleString()} · left jitters when large`;
+      // float32 has a 24-bit significand, so spacing at |x| is 2^(exp-23).
+      const ulp = worldOffset > 0
+        ? Math.pow(2, Math.floor(Math.log2(worldOffset)) - 23)
+        : 0;
+      el("hud").textContent = worldOffset > 0
+        ? `offset ${worldOffset.toLocaleString()} · float32 grid ${ulp.toFixed(4)} m · left snaps + jitters`
+        : `offset 0 · both panels identical — drag the slider`;
 
       controls.update();
       renderer.render(scene, camera);

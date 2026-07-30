@@ -90,7 +90,7 @@ You are the sole engineer and technical artist on a real-time graphics tech demo
 
 Visual quality is the product. There is no gameplay loop, no progression, no UI to design around. A player will load this, walk around a snow field for ninety seconds, cast a few spells, surf across a dune, and either think &quot;this is AAA&quot; or close the tab. Everything below serves that single judgment.
 Two rules that override everything else in this document:
-If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in [`DECISIONS.md`](DECISIONS.md) with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn&#x27;t paying for its pixels.
+If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in `DECISIONS.md` with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn&#x27;t paying for its pixels.
 Anything that reads as low-poly, flat-shaded, untextured, placeholder, or &quot;indie prototype&quot; is a defect, not a stepping stone. If you can&#x27;t make a thing look finished, cut it from the frame rather than ship it looking rough.
 Do not stop at &quot;it works.&quot; Stop when every captured frame looks polished, cohesive, and production-ready.
 ## 1. Stack and hard constraints
@@ -222,6 +222,8 @@ No HUD. No crosshair. No spell bar. Nothing else on screen, ever.
 ## 6. Project structure
 
 Suggested structure; adapt as needed:
+
+```
 /src
   /core        engine bootstrap, render loop, resource manager, pooling
   /terrain     clipmap, procedural heightfield, deformation buffers
@@ -231,9 +233,11 @@ Suggested structure; adapt as needed:
   /vfx         particle systems, decals, spray
   /post        post-process chain
   /ui          settings overlay
-/assets        vendored, with [ASSETS.md](ASSETS.md)
-[DECISIONS.md](DECISIONS.md)   every deviation from this brief + rationale
-[PERF.md](PERF.md)measured frame budget per system
+/assets        vendored, with ASSETS.md
+DECISIONS.md   every deviation from this brief + rationale
+PERF.md        measured frame budget per system
+```
+
 ## 7. Milestones
 
 Take a 1440p screenshot at every milestone, inspect it critically, and commit the screenshots.
@@ -267,14 +271,14 @@ Build, don&#x27;t test-loop. Playwright is available for capturing screenshots a
 Look at your own output constantly. Capture screenshots, inspect them critically, and iterate on values. Most of the quality gap between &quot;prototype&quot; and &quot;AAA&quot; is parameter tuning, and you can only close it by looking.
 Do not move on from an ugly milestone. Milestone 2 in particular is a hard gate.
 When a technique is not working, replace it rather than patching it. You have full latitude over the approach.
-Record every deviation in [`DECISIONS.md`](DECISIONS.md), briefly. One line is sufficient.
+Record every deviation in `DECISIONS.md`, briefly. One line is sufficient.
 Ship something worth screenshotting.">
               <div class="doc"><blockquote>Source: Reddit r/ClaudeAI — <a href="https://www.reddit.com/r/ClaudeAI/comments/1v94nal/people_liked_my_desert_so_heres_a_waterbending/" target="_blank" rel="noopener">People liked my desert, so here&#x27;s a waterbending demo!</a> by u/Any-Reputation8118.</blockquote>
 <blockquote>Extracted from the post&#x27;s spoiler block (implementation brief). Author notes this created the base; further milestone prompts guided Opus.</blockquote>
 <h1 id="snowflow-tech-demo-implementation-brief">SNOWFLOW — Tech Demo · Implementation Brief</h1>
 <p>You are the sole engineer and technical artist on a real-time graphics tech demo. Build it end to end. This document is the spec, the art direction, and the acceptance criteria.</p>
 <h2 id="0-prime-directive">0. Prime directive</h2>
-<p>Visual quality is the product. There is no gameplay loop, no progression, no UI to design around. A player will load this, walk around a snow field for ninety seconds, cast a few spells, surf across a dune, and either think &quot;this is AAA&quot; or close the tab. Everything below serves that single judgment. Two rules that override everything else in this document: If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in <a href="DECISIONS.md" target="_blank" rel="noopener"><code>DECISIONS.md</code></a> with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn&#x27;t paying for its pixels. Anything that reads as low-poly, flat-shaded, untextured, placeholder, or &quot;indie prototype&quot; is a defect, not a stepping stone. If you can&#x27;t make a thing look finished, cut it from the frame rather than ship it looking rough. Do not stop at &quot;it works.&quot; Stop when every captured frame looks polished, cohesive, and production-ready.</p>
+<p>Visual quality is the product. There is no gameplay loop, no progression, no UI to design around. A player will load this, walk around a snow field for ninety seconds, cast a few spells, surf across a dune, and either think &quot;this is AAA&quot; or close the tab. Everything below serves that single judgment. Two rules that override everything else in this document: If a requirement in this brief conflicts with making the demo more beautiful, break the requirement. Note the deviation in <code>DECISIONS.md</code> with a one-line rationale. You have full authority to change scope, swap techniques, or drop a feature that isn&#x27;t paying for its pixels. Anything that reads as low-poly, flat-shaded, untextured, placeholder, or &quot;indie prototype&quot; is a defect, not a stepping stone. If you can&#x27;t make a thing look finished, cut it from the frame rather than ship it looking rough. Do not stop at &quot;it works.&quot; Stop when every captured frame looks polished, cohesive, and production-ready.</p>
 <h2 id="1-stack-and-hard-constraints">1. Stack and hard constraints</h2>
 <ul>
 <li><strong>Language:</strong> Modern JavaScript (ES2023 modules). JSDoc types encouraged, no TypeScript build step required.</li>
@@ -332,7 +336,19 @@ Ship something worth screenshotting.">
 <h2 id="5-ui">5. UI</h2>
 <p>Provide only a settings and performance overlay, toggled with a key such as F1 or backtick and hidden by default. Contents: Frame-time graph with 1% low. Draw-call and triangle counts. Individual toggles for every post-process and major system. Quality presets. Sliders for the art parameters most likely to need live tuning, including sun angle, fog density, glint intensity, deformation depth, and refill rate. Build this early. It will save hours. No HUD. No crosshair. No spell bar. Nothing else on screen, ever.</p>
 <h2 id="6-project-structure">6. Project structure</h2>
-<p>Suggested structure; adapt as needed: /src   /core        engine bootstrap, render loop, resource manager, pooling   /terrain     clipmap, procedural heightfield, deformation buffers   /shaders     WGSL   /character   controller, robe cloth, shell fur   /spells      one module per spell + shared bending primitives   /vfx         particle systems, decals, spray   /post        post-process chain   /ui          settings overlay /assets        vendored, with <a href="ASSETS.md" target="_blank" rel="noopener">ASSETS.md</a> <a href="DECISIONS.md" target="_blank" rel="noopener">DECISIONS.md</a>   every deviation from this brief + rationale <a href="PERF.md" target="_blank" rel="noopener">PERF.md</a>measured frame budget per system</p>
+<p>Suggested structure; adapt as needed:</p>
+<pre class="codeblock"><code>/src
+  /core        engine bootstrap, render loop, resource manager, pooling
+  /terrain     clipmap, procedural heightfield, deformation buffers
+  /shaders     WGSL
+  /character   controller, robe cloth, shell fur
+  /spells      one module per spell + shared bending primitives
+  /vfx         particle systems, decals, spray
+  /post        post-process chain
+  /ui          settings overlay
+/assets        vendored, with ASSETS.md
+DECISIONS.md   every deviation from this brief + rationale
+PERF.md        measured frame budget per system</code></pre>
 <h2 id="7-milestones">7. Milestones</h2>
 <p>Take a 1440p screenshot at every milestone, inspect it critically, and commit the screenshots.</p>
 <ul>
@@ -348,7 +364,7 @@ Ship something worth screenshotting.">
 <h2 id="8-visual-acceptance-criteria">8. Visual acceptance criteria</h2>
 <p>Before declaring the demo complete, verify each item against a fresh 1440p screenshot and in motion: No visible faceting, hard polygon edges, or flat-shaded surfaces anywhere in frame. Snow highlights are not clipped to pure white; shadows are blue rather than grey or black. Distant terrain shows clear aerial perspective and contrast compression. Surface detail is legible at three distinct scales simultaneously: dunes, ripples, and grain. Trails have raised berms, self-shadow correctly, and soften over time. Sparkle appears only at grazing angles and does not crawl or shimmer in motion. The robe reads as layered fabric with real cloth motion, and the fur trim reads as fur. Spell water is translucent and refractive, with visible internal light scatter. Spell light visibly illuminates the snow it touches, including through-scatter. Every spell leaves a mark on the terrain that persists after the effect ends. The snow-surf wake looks like displaced mass with momentum, not merely particle spray. The demo sustains 90 FPS with 1% lows above 60 FPS. No hitch occurs on the first cast of any spell.</p>
 <h2 id="9-working-agreement">9. Working agreement</h2>
-<p>Build, don&#x27;t test-loop. Playwright is available for capturing screenshots at milestones and catching hard regressions. Use it for those purposes. Do not build a test suite; time spent on tests is time not spent on the snow shader. Look at your own output constantly. Capture screenshots, inspect them critically, and iterate on values. Most of the quality gap between &quot;prototype&quot; and &quot;AAA&quot; is parameter tuning, and you can only close it by looking. Do not move on from an ugly milestone. Milestone 2 in particular is a hard gate. When a technique is not working, replace it rather than patching it. You have full latitude over the approach. Record every deviation in <a href="DECISIONS.md" target="_blank" rel="noopener"><code>DECISIONS.md</code></a>, briefly. One line is sufficient. Ship something worth screenshotting.</p></div>
+<p>Build, don&#x27;t test-loop. Playwright is available for capturing screenshots at milestones and catching hard regressions. Use it for those purposes. Do not build a test suite; time spent on tests is time not spent on the snow shader. Look at your own output constantly. Capture screenshots, inspect them critically, and iterate on values. Most of the quality gap between &quot;prototype&quot; and &quot;AAA&quot; is parameter tuning, and you can only close it by looking. Do not move on from an ugly milestone. Milestone 2 in particular is a hard gate. When a technique is not working, replace it rather than patching it. You have full latitude over the approach. Record every deviation in <code>DECISIONS.md</code>, briefly. One line is sufficient. Ship something worth screenshotting.</p></div>
             </div>
           </div>
         </section>

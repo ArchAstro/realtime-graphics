@@ -22,11 +22,15 @@
       <h2>How it works</h2>
       <p>
         One normal map (or noise normal) at a single frequency looks wrong up close <em>or</em>
-        far away. Sample <strong>three frequencies</strong> and lerp weights with camera distance:
+        far away. Sample <strong>three frequencies</strong> and weight them by camera distance.
+        Add each detail layer as a <em>deviation from flat</em> rather than lerping toward it —
+        <code>mix</code> would fade the macro shape out as detail comes in, while adding the
+        delta perturbs the macro normal and leaves the silhouette intact:
       </p>
-      <pre class="codeblock">n = nMacro
-n = normalize(mix(n, nMeso, wMeso))
-n = normalize(mix(n, nMicro, wMicro))</pre>
+      <pre class="codeblock">up = vec3(0,1,0)
+n = nMacro
+n = normalize(n + (nMeso  - up) * wMeso)
+n = normalize(n + (nMicro - up) * wMicro)</pre>
       <p>
         On steep faces, UV projection stretches — switch to <strong>triplanar</strong>
         (blend projections from XY / YZ / ZX by world normal).
@@ -153,9 +157,6 @@ n = normalize(mix(n, nMicro, wMicro))</pre>
           float hD = n2((p+vec2(0,-e))*scale);
           float hU = n2((p+vec2(0, e))*scale);
           return normalize(vec3((hL-hR)*strength, 1.0, (hD-hU)*strength));
-        }
-        vec3 blendN(vec3 a, vec3 b, float w){
-          return normalize(vec3(a.xy + b.xy * w, a.z)); // RN-style-ish in tangent; we work world-ish
         }
 
         void main(){

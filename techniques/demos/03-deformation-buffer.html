@@ -190,6 +190,9 @@
     const terrainUniforms = {
       tDef: { value: readRT.texture },
       uShowBuf: { value: 0 },
+      uTexel: { value: 1 / RES },
+      // World size of the terrain quad, for converting uv gradients to slopes.
+      uWorldSize: { value: 10 },
     };
     const terrainMat = new THREE.ShaderMaterial({
       uniforms: terrainUniforms,
@@ -212,14 +215,32 @@
         varying vec3 vW;
         uniform sampler2D tDef;
         uniform float uShowBuf;
+        uniform float uTexel, uWorldSize;
+
+        // Same displacement the vertex shader applies, so the gradient below
+        // describes the surface actually being drawn.
+        float surf(vec2 uv){
+          vec4 d = texture2D(tDef, uv);
+          return -d.r * 1.8 + d.g * 1.1;
+        }
+
         void main(){
           vec4 d = texture2D(tDef, vUv);
           if (uShowBuf > 0.5) {
             gl_FragColor = vec4(d.r, d.g, 0.15, 1.0);
             return;
           }
-          vec3 dx = dFdx(vW), dy = dFdy(vW);
-          vec3 n = normalize(cross(dx, dy));
+          // Analytic normal by central differences on the buffer. Screen-space
+          // dFdx/dFdy of the world position gives one constant normal per
+          // triangle, which on a 180x180 grid reads as faceted noise and dies
+          // completely on the flat, undug field.
+          float hl = surf(vUv - vec2(uTexel, 0.));
+          float hr = surf(vUv + vec2(uTexel, 0.));
+          float hd = surf(vUv - vec2(0., uTexel));
+          float hu = surf(vUv + vec2(0., uTexel));
+          // uv spans uWorldSize world units, so one texel is this wide.
+          float step = uWorldSize * uTexel;
+          vec3 n = normalize(vec3(-(hr - hl) / (2.0 * step), 1.0, -(hu - hd) / (2.0 * step)));
           float ndl = clamp(dot(n, normalize(vec3(0.3,1.,0.2))), 0., 1.);
           // compressed snow darker
           float comp = smoothstep(0.0, 0.4, d.r);
@@ -287,9 +308,25 @@
     addEventListener("resize", resize);
     resize();
 
+    // Carve a starting trail so the landing state shows a trench and berms
+    // instead of a pristine flat field that looks like an unlit plane.
+    const SEED_FRAMES = 90;
+    let seedFrame = 0;
+
     const clock = new THREE.Clock();
     (function frame() {
       const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (seedFrame < SEED_FRAMES && !digging) {
+        const u = seedFrame / (SEED_FRAMES - 1);
+        brush.x = 0.22 + 0.56 * u;
+        brush.y = 0.5 + 0.16 * Math.sin(u * Math.PI * 2.0);
+        // Light touch: the path slows at the sine's turning points, and a
+        // heavier brush saturates the depression clamp there.
+        brush.s = 0.22;
+        seedFrame++;
+      }
+
       simUniforms.uDt.value = dt;
       simUniforms.uRefill.value = refill;
       simUniforms.tPrev.value = readRT.texture;

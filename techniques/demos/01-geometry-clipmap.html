@@ -27,9 +27,15 @@
       </p>
       <ul>
         <li>Vertex attributes: <code>gridIndex</code>, <code>ringLevel</code> only</li>
-        <li>VS places the vertex in world XZ from those indices + camera center</li>
+        <li>VS places the vertex in world XZ from those indices + player center</li>
+        <li>Center is <strong>snapped to ring-0 vertex spacing</strong> so the near lattice
+          doesn’t swim as the player moves</li>
         <li>Height sampled from a noise / height texture in the VS</li>
-        <li>Optional CDLOD morph blends the seam between rings</li>
+        <li>Every ring samples the <strong>same</strong> field at the same amplitude — vary
+          only tessellation density, never the height, or the seams tear</li>
+        <li>CDLOD morph (implemented here) snaps each ring’s outer edge onto the next
+          coarser lattice, so the two tessellations share vertices instead of leaving
+          T-junction cracks</li>
       </ul>
       <div class="eq">cost ≈ O(ringVerts) draws: 1 · no CPU rebuild</div>
 
@@ -60,8 +66,15 @@
       </div>
 
       <div class="note">
+        <strong>Watch:</strong> the marker is the player, and the rings are centred on it.
+        The ring colours hold still on screen while the heightfield flows through them —
+        the terrain is world-locked, the lattice is not. Nothing is rebuilt on the CPU;
+        only <code>uCenter</code> changes.
+      </div>
+      <div class="note">
         <strong>Try:</strong> drag to orbit. Toggle ring colors — outer rings cover more world
-        space per triangle. That’s the LOD win.
+        space per triangle. That’s the LOD win. Turn on wireframe to see the tessellation
+        halve at every ring boundary.
       </div>
 
       
@@ -177,6 +190,9 @@
       uSpacing: { value: 1 },
       uColorRings: { value: 1 },
       uTime: { value: 0 },
+      // World-space XZ the ring lattice is centred on. Snapped to ring-0
+      // vertex spacing each frame so the near grid doesn't swim.
+      uCenter: { value: new THREE.Vector2() },
     };
 
     const mat = new THREE.ShaderMaterial({
@@ -190,6 +206,7 @@
         uniform float uHeight;
         uniform float uSpacing;
         uniform float uTime;
+        uniform vec2 uCenter;
 
         // simple value noise
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -207,13 +224,33 @@
 
         void main(){
           vRing = ring;
-          vec3 p = position * uSpacing;
-          // CDLOD-ish: outer rings get slightly smoother sampling (fewer high freqs)
-          float lod = ring;
-          vec2 xz = p.xz * 0.08;
-          float h = fbm(xz) * uHeight;
-          h *= mix(1.0, 0.65, clamp(lod / 5.0, 0., 1.));
-          p.y = h;
+          // The lattice is player-local: vertex indices only ever describe a
+          // ring offset. uCenter slides that whole structure over the world,
+          // and the height is re-sampled at the resulting world position.
+          // No CPU rebuild, no buffer upload — this is the clipmap.
+          vec2 local = position.xz * uSpacing;
+
+          // CDLOD morph. Ring r's cell is 2^r/6 wide and its outer edge sits at
+          // 4*2^r, so ring r+1's lattice is exactly every second vertex of
+          // ring r. Snapping this ring's outer edge onto that coarser lattice
+          // makes the two tessellations share vertices — without it the finer
+          // edge follows the height curve while the coarser edge cuts a chord
+          // between the same endpoints, and the seam cracks open.
+          float cell  = (pow(2.0, ring) / 6.0) * uSpacing;
+          float outer = 4.0 * pow(2.0, ring) * uSpacing;
+          float edge  = max(abs(local.x), abs(local.y)) / max(outer, 1e-6);
+          float morph = smoothstep(0.72, 1.0, edge);
+          vec2 coarse = floor(local / (cell * 2.0) + 0.5) * (cell * 2.0);
+          local = mix(local, coarse, morph);
+
+          vec2 world = local + uCenter;
+          // Every ring must sample the *same* height field. Scaling amplitude
+          // per ring (a tempting way to fake "less detail far away") makes
+          // neighbouring rings disagree about where the surface is, and the
+          // boundary tears open. The LOD win comes from tessellation density,
+          // not from changing the field.
+          float h = fbm(world * 0.08) * uHeight;
+          vec3 p = vec3(world.x, h, world.y);
           vH = h;
           vWorld = p;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
@@ -246,14 +283,16 @@
     });
 
     const mesh = new THREE.Mesh(geo, mat);
+    // Vertices are placed in world space from uCenter inside the vertex shader,
+    // so the mesh's own bounds never describe where it actually is.
+    mesh.frustumCulled = false;
     scene.add(mesh);
 
-    // player marker at origin (clipmap center)
+    // Player marker — this is what the ring lattice is centred on.
     const marker = new THREE.Mesh(
       new THREE.SphereGeometry(0.4, 16, 16),
       new THREE.MeshStandardMaterial({ color: 0x6ec8ff, emissive: 0x12344a })
     );
-    marker.position.y = 2;
     scene.add(marker);
 
     document.getElementById("hud").textContent =
@@ -280,10 +319,37 @@
     el("colorRings").onchange = (e) => { uniforms.uColorRings.value = e.target.checked ? 1 : 0; };
     el("wire").onchange = (e) => { mat.wireframe = e.target.checked; };
 
+    // Ring 0 spans [-4, 4] over SEGS cells; that is the finest vertex spacing.
+    const RING0_SPAN = 8;
     const clock = new THREE.Clock();
+    const center = new THREE.Vector2();
+    const prevCenter = new THREE.Vector2();
     function frame() {
-      uniforms.uTime.value = clock.getElapsedTime();
-      marker.position.y = 1.5 + Math.sin(uniforms.uTime.value * 2) * 0.2;
+      const time = clock.getElapsedTime();
+      uniforms.uTime.value = time;
+
+      // Walk a player across the world. The rings follow it; the terrain does
+      // not move — watch the ring colours hold still on screen while the
+      // heightfield flows through them.
+      const px = Math.cos(time * 0.16) * 34;
+      const pz = Math.sin(time * 0.16) * 34;
+      const step = (RING0_SPAN / SEGS) * uniforms.uSpacing.value;
+      center.set(Math.round(px / step) * step, Math.round(pz / step) * step);
+      uniforms.uCenter.value.copy(center);
+
+      marker.position.set(
+        center.x,
+        uniforms.uHeight.value + 1.4 + Math.sin(time * 2) * 0.2,
+        center.y
+      );
+      // Keep the player framed, the way a game camera would. OrbitControls
+      // rebuilds its offset from the current camera position every update, so
+      // moving the target alone only re-aims — the camera has to be carried
+      // along by the same delta to hold a constant viewing distance.
+      camera.position.x += center.x - prevCenter.x;
+      camera.position.z += center.y - prevCenter.y;
+      controls.target.set(center.x, 0, center.y);
+      prevCenter.copy(center);
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(frame);

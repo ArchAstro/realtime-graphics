@@ -82,11 +82,15 @@
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1824);
-    scene.fog = new THREE.Fog(0x0c1824, 20, 70);
+    // Fog starts past the wake so the subject itself is not hazed out.
+    scene.fog = new THREE.Fog(0x0c1824, 36, 100);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
-    camera.position.set(8, 10, 16);
+    camera.position.set(9, 11, 17);
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.5, 0);
+    // Aim at the middle of the spine's footprint. Fixed, not following the
+    // board: the carve sweeps ±6 in x, so a follow-cam swings the ribbon
+    // out of frame.
+    controls.target.set(0, 0.5, -4.4);
 
     scene.add(new THREE.AmbientLight(0x6688aa, 0.5));
     const sun = new THREE.DirectionalLight(0xffe8c8, 1.3);
@@ -145,6 +149,10 @@
       flatShading: false,
     });
     const wake = new THREE.Mesh(geo, mat);
+    // Positions are rewritten every frame, but the bounding sphere is only
+    // computed from the initial (all-zero) buffer — leave culling on and
+    // three.js discards the mesh as soon as the path leaves the origin.
+    wake.frustumCulled = false;
     scene.add(wake);
 
     // board / rider proxy
@@ -173,13 +181,20 @@
       );
     }
 
+    // The spine covers TRAIL_SECONDS of travel. Keep it anchored at the origin
+    // instead of letting z run away with wall-clock time — otherwise the wake
+    // marches off the ground plane and out of frame within seconds.
+    const TRAIL_SECONDS = 2.5;
+    const TRAVEL_SPEED = 3.5;
+    const SPINE_LEN = TRAIL_SECONDS * TRAVEL_SPEED;
+
     function updateWake(time) {
-      // figure-8 / carve path
+      // figure-8 / carve path; tip sits at z = 0, tail trails behind in -z
       for (let i = 0; i <= SEG_S; i++) {
         const u = i / SEG_S;
-        const tt = time - (1 - u) * 2.5;
+        const tt = time - (1 - u) * TRAIL_SECONDS;
         const x = Math.sin(tt * 0.9) * 6;
-        const z = tt * 3.5;
+        const z = (u - 1) * SPINE_LEN;
         const y = 0.02;
         path[i].set(x, y, z);
       }
@@ -237,7 +252,6 @@
     (function frame() {
       if (!paused) t = clock.getElapsedTime();
       updateWake(t);
-      controls.target.lerp(board.position, 0.05);
       controls.update();
       el("hud").textContent = `spine ${SEG_S} · profile ${SEG_T} · curl ${curl.toFixed(2)}`;
       renderer.render(scene, camera);

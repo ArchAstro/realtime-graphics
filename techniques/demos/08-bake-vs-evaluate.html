@@ -79,10 +79,12 @@
     const controls = new OrbitControls(camera, renderer.domElement);
 
     const BAKE = 512;
+    // Half-float so the baked height keeps enough precision for finite-difference
+    // normals; an 8-bit target quantises the gradient into visible steps.
     const bakeRT = new THREE.WebGLRenderTarget(BAKE, BAKE, {
-      minFilter: THREE.LinearMipmapLinearFilter,
+      minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
-      generateMipmaps: true,
+      type: THREE.HalfFloatType,
     });
 
     const noiseGLSL = `
@@ -114,14 +116,11 @@
       fragmentShader: noiseGLSL + `
         varying vec2 vUv; uniform float uOct;
         void main(){
-          vec2 p = vUv * 6.0;
-          float h = fbm(p, int(uOct));
-          // pack height + simple normal-ish
-          float e=0.003;
-          float hx = fbm(p+vec2(e,0), int(uOct)) - fbm(p-vec2(e,0), int(uOct));
-          float hy = fbm(p+vec2(0,e), int(uOct)) - fbm(p-vec2(0,e), int(uOct));
-          vec3 n = normalize(vec3(-hx, -hy, 0.08));
-          gl_FragColor = vec4(h, n.xy * 0.5 + 0.5);
+          // Store height only. Normals come from finite differences on this
+          // bake at runtime — that is the whole point: a few texel taps
+          // instead of re-running the octave stack per pixel.
+          float h = fbm(vUv * 6.0, int(uOct));
+          gl_FragColor = vec4(h, h, h, 1.0);
         }`,
     });
     bakeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bakeMat));
@@ -143,7 +142,8 @@
       uMode: { value: 0 },
       uOct: { value: 8 },
       tBake: { value: bakeRT.texture },
-      uTime: { value: 0 },
+      uTexel: { value: 1 / BAKE },
+      uBump: { value: 22 },
     };
 
     const mat = new THREE.ShaderMaterial({
@@ -159,28 +159,45 @@
         }`,
       fragmentShader: noiseGLSL + `
         varying vec2 vUv; varying vec3 vN; varying vec3 vW;
-        uniform float uMode, uOct, uTime;
+        uniform float uMode, uOct;
         uniform sampler2D tBake;
+        uniform float uTexel, uBump;
+
+        // Perturb the geometric normal by a height gradient given in uv space.
+        // Both paths funnel through here, so evaluate and baked are directly
+        // comparable — the only difference is where the gradient came from.
+        vec3 bumpNormal(vec3 Ng, float dhdu, float dhdv){
+          vec3 dPx = dFdx(vW), dPy = dFdy(vW);
+          vec2 dUx = dFdx(vUv), dUy = dFdy(vUv);
+          float det = dUx.x * dUy.y - dUy.x * dUx.y;
+          if (abs(det) < 1e-9) return Ng;
+          vec3 T = normalize((dPx * dUy.y - dPy * dUx.y) / det);
+          vec3 B = normalize(cross(Ng, T));
+          return normalize(Ng - (T * dhdu + B * dhdv) * uBump);
+        }
+
         void main(){
+          vec3 Ng = normalize(vN);
           vec3 N;
           float h;
+          float dhdu, dhdv;
           if (uMode < 0.5) {
-            // evaluate every pixel
-            vec2 p = vUv * 6.0 + uTime * 0.02;
+            // Evaluate: run the octave stack per pixel, plus 4 more taps for
+            // the gradient. Cost scales with octaves.
+            vec2 p = vUv * 6.0;
+            float dp = 6.0 * uTexel;
             h = fbm(p, int(uOct));
-            float e=0.003;
-            float hx = fbm(p+vec2(e,0), int(uOct)) - fbm(p-vec2(e,0), int(uOct));
-            float hy = fbm(p+vec2(0,e), int(uOct)) - fbm(p-vec2(0,e), int(uOct));
-            N = normalize(mat3(modelMatrix) * normalize(vec3(-hx, -hy, 0.08)));
-            // remap to sphere-ish normal blend
-            N = normalize(mix(normalize(vN), N, 0.85));
+            dhdu = fbm(p + vec2(dp, 0.), int(uOct)) - fbm(p - vec2(dp, 0.), int(uOct));
+            dhdv = fbm(p + vec2(0., dp), int(uOct)) - fbm(p - vec2(0., dp), int(uOct));
           } else {
-            vec4 b = texture2D(tBake, vUv);
-            h = b.r;
-            vec3 nTex = vec3(b.g * 2. - 1., b.b * 2. - 1., 0.08);
-            nTex = normalize(nTex);
-            N = normalize(mix(normalize(vN), mat3(modelMatrix) * nTex, 0.85));
+            // Baked: one tap for height, four for the gradient. Flat cost.
+            h = texture2D(tBake, vUv).r;
+            dhdu = texture2D(tBake, vUv + vec2(uTexel, 0.)).r
+                 - texture2D(tBake, vUv - vec2(uTexel, 0.)).r;
+            dhdv = texture2D(tBake, vUv + vec2(0., uTexel)).r
+                 - texture2D(tBake, vUv - vec2(0., uTexel)).r;
           }
+          N = bumpNormal(Ng, dhdu, dhdv);
           vec3 L = normalize(vec3(0.4, 0.6, 0.5));
           float ndl = clamp(dot(N,L),0.,1.);
           vec3 col = mix(vec3(0.1,0.15,0.35), vec3(0.6,0.75,0.55), h);
@@ -225,15 +242,16 @@
       el("hud").textContent = `baked in ${ms.toFixed(2)} ms · runtime cheap`;
     };
 
-    // crude cost model for HUD
+    // Crude cost model for the HUD. Linear in octaves, matching
+    // cost_eval ∝ pixels × octaves: each octave is one more noise tap per pixel.
+    const MS_PER_OCTAVE = 0.09;
     function estimateMs() {
-      if (mode < 0.5) return (0.15 * oct * oct * 0.08).toFixed(2);
+      if (mode < 0.5) return (MS_PER_OCTAVE * oct).toFixed(2);
       return (0.12).toFixed(2);
     }
 
     const clock = new THREE.Clock();
     (function frame() {
-      uniforms.uTime.value = clock.getElapsedTime();
       sphere.rotation.y += 0.003;
       controls.update();
       el("hud").textContent = mode < 0.5

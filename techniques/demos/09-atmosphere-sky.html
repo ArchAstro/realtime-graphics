@@ -41,8 +41,8 @@
           <input id="el" type="range" min="-5" max="85" step="0.5" value="12" />
         </div>
         <div class="control">
-          <label>Sun azimuth</label><span class="val" id="v-az">40°</span>
-          <input id="az" type="range" min="0" max="360" step="1" value="40" />
+          <label>Sun azimuth</label><span class="val" id="v-az">285°</span>
+          <input id="az" type="range" min="0" max="360" step="1" value="285" />
         </div>
         <div class="control">
           <label>Turbidity / haze</label><span class="val" id="v-haz">0.45</span>
@@ -141,13 +141,18 @@
         varying vec3 vW; varying vec3 vN;
         float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
         float n2(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));vec2 u=f*f*(3.-2.*f);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}
+        // Single source of truth for the height, so the normal below is the
+        // real gradient of the surface being drawn.
+        float height(vec2 q){ return n2(q*0.08)*1.5 + n2(q*0.3)*0.35; }
         void main(){
+          // Geometry is pre-rotated into XZ (see geo.rotateX below), so
+          // position.xz is the horizontal plane and y is height.
           vec3 p = position;
-          p.y = n2(p.xz*0.08)*1.5 + n2(p.xz*0.3)*0.35;
-          float e=0.4;
-          float hx=n2((p.xz+vec2(e,0))*0.08)-n2((p.xz-vec2(e,0))*0.08);
-          float hz=n2((p.xz+vec2(0,e))*0.08)-n2((p.xz-vec2(0,e))*0.08);
-          vN = normalize(vec3(-hx, e*1.2, -hz));
+          p.y = height(p.xz);
+          float e = 0.4;
+          float hx = height(p.xz + vec2(e,0.)) - height(p.xz - vec2(e,0.));
+          float hz = height(p.xz + vec2(0.,e)) - height(p.xz - vec2(0.,e));
+          vN = normalize(vec3(-hx, 2.0*e, -hz));
           vec4 w = modelMatrix * vec4(p,1.);
           vW = w.xyz;
           gl_Position = projectionMatrix * viewMatrix * w;
@@ -164,7 +169,9 @@
           vec3 sunCol = mix(vec3(1.0,0.5,0.2), vec3(1.0,0.95,0.85), smoothstep(0.0,0.4,L.y));
           vec3 skyAmb = mix(vec3(0.08,0.12,0.25), vec3(0.25,0.35,0.55), smoothstep(-0.05,0.5,L.y));
           vec3 albedo = mix(vec3(0.35,0.4,0.28), vec3(0.55,0.48,0.35), smoothstep(0.,2.,vW.y));
-          vec3 col = albedo * (skyAmb * (0.4 + 0.3*N.y) + sunCol * wrap);
+          // Hemispherical sky fill: upward-facing ground picks up more sky.
+          // This is the cool shadow half of the warm-light / cool-shadow pair.
+          vec3 col = albedo * (skyAmb * (0.6 + 0.4*N.y) + sunCol * wrap);
           // aerial perspective
           float dist = length(cameraPosition - vW);
           vec3 fogCol = mix(skyAmb, sunCol, 0.3);
@@ -173,8 +180,13 @@
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80, 120, 120), groundMat);
-    ground.rotation.x = -Math.PI / 2;
+    // Bake the rotation into the geometry rather than rotating the mesh.
+    // PlaneGeometry is authored in local XY; rotating the *mesh* leaves
+    // position.z at 0 in the shader, so writing p.y would flatten the plane
+    // instead of displacing it.
+    const groundGeo = new THREE.PlaneGeometry(80, 80, 120, 120);
+    groundGeo.rotateX(-Math.PI / 2);
+    const ground = new THREE.Mesh(groundGeo, groundMat);
     scene.add(ground);
 
     function setSun(elDeg, azDeg) {

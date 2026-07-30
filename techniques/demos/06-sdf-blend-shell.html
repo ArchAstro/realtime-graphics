@@ -21,7 +21,7 @@
 
       <h2>How it works</h2>
       <ol style="padding-left:1.15rem;color:#c5cddd;font-size:13px">
-        <li>Author body as capsules/spheres (ordinary meshes).</li>
+        <li>Author body as spheres or capsules (ordinary meshes).</li>
         <li>In the VS, evaluate <code>smoothMin</code> of all primitive SDFs at the vertex.</li>
         <li>Project the vertex onto the blended surface (along gradient).</li>
         <li>Normals from the SDF gradient → continuous lighting across joints.</li>
@@ -30,6 +30,12 @@
 // Newton-ish project onto d=0
 p -= normalize(grad) * d;</pre>
       <p>Still one (or few) mesh draws — no per-pixel raymarch. Mobile-friendly.</p>
+      <p class="note">
+        This sketch blends eight <code>sdSphere</code> primitives. Swapping in
+        <code>sdCapsule</code> (a segment plus a radius) changes nothing structurally —
+        the same <code>smin</code>, projection, and gradient-normal steps apply to any
+        primitive that reports a signed distance.
+      </p>
 
       <h2>Prompt match</h2>
       <p>“Ragdoll-like characters composed of primitives that look like one seamless body via a custom mobile-performant tech-art/shader solution.”</p>

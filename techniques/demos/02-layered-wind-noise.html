@@ -196,13 +196,10 @@
       `,
     });
 
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(80, 80, 220, 220), mat);
-    mesh.rotation.x = -Math.PI / 2;
-    // plane was XY; we used position.xz in shader expecting Y-up height — rotate so plane XZ
-    // Actually PlaneGeometry is XY; after rot -90 X, local Y becomes world -Z. Simpler: don't rotate, displace Y in shader on a XZ plane built manually.
-    scene.remove(mesh);
-
-    // Build XZ plane
+    // Bake the rotation into the geometry, don't rotate the mesh. PlaneGeometry
+    // is authored in local XY, so a mesh-level rotation would leave position.z
+    // at 0 in the shader and writing p.y would flatten the plane instead of
+    // displacing it.
     const geo = new THREE.PlaneGeometry(80, 80, 220, 220);
     geo.rotateX(-Math.PI / 2);
     const terrain = new THREE.Mesh(geo, mat);
